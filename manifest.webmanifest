@@ -1,0 +1,19 @@
+{
+  "name": "FaberViux",
+  "short_name": "FaberViux",
+  "description": "Catálogo pessoal de filmes, séries e animes já vistos.",
+  "id": "./index.html",
+  "start_url": "./index.html?v=20260625layoutpersist",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#050506",
+  "theme_color": "#050506",
+  "prefer_related_applications": false,
+  "icons": [
+    { "src": "./icons/icon-180.png", "sizes": "180x180", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

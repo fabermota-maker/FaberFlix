@@ -1,0 +1,25 @@
+FaberViux - atualização mantendo o layout original
+
+O que foi feito:
+1. O index.html enviado foi usado como base para preservar o visual original.
+2. Foi mantida a estrutura visual dos cards, topo, botões, abas e tela inicial.
+3. Foi reforçado o salvamento local das capas, edições, categorias e filmes adicionados.
+4. Foram adicionadas chaves de persistência por assinatura do filme, então as edições não dependem apenas do ID numérico.
+5. Foi incluída migração de dados de versões anteriores, inclusive da versão de persistência que mudou o layout.
+6. Foi adicionado backup/importação dentro de Configurações > Capas automáticas.
+7. O service-worker foi ajustado para buscar o index.html atualizado na rede e evitar ficar preso em cache antigo.
+
+Como subir no GitHub:
+- Envie todos os arquivos e a pasta icons para a raiz do repositório.
+- Confirme a substituição do index.html, manifest.webmanifest, service-worker.js e dos ícones.
+- Não envie o conteúdo do ZIP como uma pasta separada. Os arquivos precisam ficar na raiz do repositório.
+
+Importante:
+- As capas e alterações ficam salvas no mesmo navegador/celular via localStorage.
+- Se abrir em aba anônima, outro celular ou limpar dados do navegador, as capas locais não aparecem.
+- Para trocar de aparelho, use Exportar backup e depois Importar backup.
+
+Após subir:
+- Abra o app no celular.
+- Se ele ainda mostrar versão antiga, atualize a página 2 ou 3 vezes.
+- No Android, também pode ir em Configurações do site > Dados armazenados > limpar apenas se tiver backup exportado.
