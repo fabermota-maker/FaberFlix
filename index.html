@@ -402,6 +402,7 @@ function migrateLegacyStorage(){
     saveCustomMovies(custom);
     saveMovieEdits(edits);
     saveMovieSignatureEdits(sigEdits);
+    saveSavedCategories([...loadSavedCategories(), category]);
     saveSavedCategories(cats);
     localStorage.setItem(migrationFlagKey,'1');
   }catch(err){console.warn('Migração de dados antigos não concluída',err)}
@@ -678,6 +679,16 @@ function categoryOrder(){
   });
   return arr;
 }
+function resolveCategoryName(name){
+  const clean=String(name||'').trim();
+  if(!clean) return 'Adicionados';
+  const existing=categoryOrder().find(c=>norm(c)===norm(clean));
+  return existing || clean;
+}
+function categorySectionId(cat){
+  const slug=norm(cat).replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+  return 'cat-' + (slug || 'sem-categoria');
+}
 function populateCategories(){
   if(!app.categoryList) return;
   app.categoryList.innerHTML = categoryOrder().sort((a,b)=>a.localeCompare(b,'pt-BR')).map(c=>`<option value="${esc(c)}"></option>`).join('');
@@ -705,14 +716,12 @@ function showHome(){
   app.results.classList.add('hidden'); app.rails.classList.remove('hidden');
   const u=unique(movies);
   const latest=u.filter(m=>m.year).sort(byYearDesc);
-  const custom=u.filter(m=>m.source==='manual');
   const notas=u.filter(m=>hasNotes(m));
   const html=[];
   html.push(rail('Lançamentos mais recentes', latest, 'rolagem lateral', true, 'recentes'));
-  if(custom.length) html.push(rail('Adicionados por você', custom, 'salvos no celular', false, 'adicionados'));
   html.push(rail('Notas', notas, 'filmes com ★ estrelas', false, 'notas'));
   html.push(`<div class="section-title" id="generos">Categorias da lista</div>`);
-  for(const cat of categoryOrder()) html.push(rail(cat, movies.filter(m=>m.category===cat), 'até 5 visíveis'));
+  for(const cat of categoryOrder()) html.push(rail(cat, movies.filter(m=>norm(m.category)===norm(cat)), 'até 5 visíveis', false, categorySectionId(cat)));
   app.rails.innerHTML=html.join('');
   hydrateCovers(app.rails);
 }
@@ -858,7 +867,7 @@ async function addManualMovie(e){
   const title=app.movieTitle.value.trim();
   const year=Number(app.movieYear.value)||null;
   const seenDate=app.movieSeenDate.value||'';
-  const category=app.movieCategory.value.trim()||'Adicionados';
+  const category=resolveCategoryName(app.movieCategory.value.trim()||'Adicionados');
   if(!title){ app.addStatus.textContent='Informe o nome do filme.'; return; }
   const movie={
     id:nextManualId(), title, searchTitle:title, year, category, seenDate,
@@ -867,6 +876,7 @@ async function addManualMovie(e){
   };
   const list=loadCustomMovies();
   list.unshift(movie);
+  saveSavedCategories([...loadSavedCategories(), category]);
   try{
     saveCustomMovies(list);
   }catch(err){
@@ -877,7 +887,7 @@ async function addManualMovie(e){
   statCards(); chips(); populateCategories();
   app.search.value=''; showHome();
   app.addSheet.close();
-  setTimeout(()=>document.querySelector('#adicionados')?.scrollIntoView({behavior:'smooth',block:'start'}),120);
+  setTimeout(()=>document.getElementById(categorySectionId(category))?.scrollIntoView({behavior:'smooth',block:'start'}),120);
 }
 function updateEditSeriesFields(){
   if(!app.editSeriesFields) return;
@@ -920,7 +930,7 @@ async function saveEditedMovie(e){
   const title=app.editMovieTitle.value.trim();
   const year=Number(app.editMovieYear.value)||null;
   const seenDate=app.editMovieSeenDate.value||'';
-  const category=app.editMovieCategory.value.trim()||'Sem categoria';
+  const category=resolveCategoryName(app.editMovieCategory.value.trim()||'Sem categoria');
   const seasons=Number(app.editMovieSeasons?.value)||0;
   const episodes=Number(app.editMovieEpisodes?.value)||0;
   const seriesText=(seasons||episodes) ? ` | ${formatSeriesInfo({seasons,episodes})}` : '';
