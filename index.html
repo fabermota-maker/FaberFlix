@@ -308,6 +308,38 @@ button,input{font:inherit}button{cursor:pointer}a{color:inherit;text-decoration:
   -webkit-backdrop-filter:blur(12px) saturate(1.18)!important;
 }
 
+
+
+/* Ajuste solicitado: centralizar bloco do ícone + Minha biblioteca + FaberViux */
+.hero-inner{
+  grid-template-columns:58px max-content!important;
+  justify-content:center!important;
+  justify-items:start!important;
+  align-items:center!important;
+  column-gap:12px!important;
+}
+.hero-kicker{
+  white-space:nowrap!important;
+  justify-self:start!important;
+  text-align:left!important;
+}
+.hero h1{
+  width:max-content!important;
+  max-width:none!important;
+  justify-self:start!important;
+  text-align:left!important;
+}
+@media(max-width:380px){
+  .hero-inner{
+    grid-template-columns:52px max-content!important;
+    column-gap:10px!important;
+    justify-content:center!important;
+  }
+  .hero h1{
+    width:max-content!important;
+    max-width:none!important;
+  }
+}
 </style>
 </head>
 <body>
