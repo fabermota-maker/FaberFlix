@@ -585,6 +585,25 @@ function shuffled(list){
 function filmLabel(n){
   return `${n} film${n===1?'':'s'}`;
 }
+function sequenceMovieCount(m){
+  const title=String(m?.title || m?.searchTitle || '');
+  const text=title.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[–—]/g,'-');
+  let best=1;
+  text.replace(/\b(\d{1,2})\s*(?:ao|a|ate|-)\s*(\d{1,2})\b/g,(_,start,end)=>{
+    start=Number(start); end=Number(end);
+    if(start>=1 && end>=start && end<=50) best=Math.max(best,end-start+1);
+    return _;
+  });
+  text.replace(/\b\d{1,2}(?:\s*(?:,|e|&|\+|\/)\s*\d{1,2})+\b/g,(match)=>{
+    const nums=(match.match(/\d{1,2}/g)||[]).map(Number).filter(n=>n>=1 && n<=50);
+    if(nums.length>=2) best=Math.max(best,new Set(nums).size);
+    return match;
+  });
+  return best;
+}
+function watchedTotalCount(list){
+  return unique(list).reduce((total,m)=>total+sequenceMovieCount(m),0);
+}
 function rating(m){if(m.rating) return m.rating; const s=Number(m.stars)||0; if(s>=4) return 'Style'; if(s===3) return 'Bom'; if(s===1) return 'Ruim'; return null}
 function hasNotes(m){return (Number(m.stars)||0)>0 || Boolean(rating(m))}
 function typeOf(m){const raw=norm(`${m.type||''} ${m.category||''} ${m.raw||''}`); if(raw.includes('dorama')) return 'Dorama'; if(m?.type==='tv' || raw.includes('serie') || raw.includes('temp') || raw.includes('tp') || raw.includes('temporada') || /\b\d+\s*ep\b/.test(raw)) return 'Série'; if(raw.includes('anime') || norm(m.category).includes('anime')) return 'Anime'; return 'Filme'}
@@ -662,8 +681,9 @@ function colorFor(m){return accents[hash(m.title)%accents.length]}
 function statCards(){
   const u=unique(movies); const cats=new Set(movies.map(m=>m.category).filter(Boolean));
   const withYear=u.filter(m=>m.year); const min=withYear.length?Math.min(...withYear.map(m=>m.year)):0; const max=withYear.length?Math.max(...withYear.map(m=>m.year)):0;
+  const assistidos=watchedTotalCount(movies);
   const cards=[
-    [u.length,'assistidos','hot'],[cats.size,'categorias',''],[u.filter(m=>typeOf(m)==='Filme').length,'filmes',''],[u.filter(m=>typeOf(m)==='Série').length,'séries',''],[u.filter(m=>typeOf(m)==='Anime').length,'animes',''],[u.filter(m=>hasNotes(m)).length,'notas','gold'],[`${min}-${max}`,'anos','']
+    [assistidos,'assistidos','hot'],[cats.size,'categorias',''],[u.filter(m=>typeOf(m)==='Filme').length,'filmes',''],[u.filter(m=>typeOf(m)==='Série').length,'séries',''],[u.filter(m=>typeOf(m)==='Anime').length,'animes',''],[u.filter(m=>hasNotes(m)).length,'notas','gold'],[`${min}-${max}`,'anos','']
   ];
   app.stats.innerHTML=cards.map(([v,l,c])=>`<article class="stat ${c}"><strong>${esc(v)}</strong><span>${esc(l)}</span></article>`).join('');
 }
