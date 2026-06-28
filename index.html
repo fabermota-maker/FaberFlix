@@ -340,6 +340,132 @@ button,input{font:inherit}button{cursor:pointer}a{color:inherit;text-decoration:
     max-width:none!important;
   }
 }
+
+
+/* Ajuste solicitado: player no detalhe e link do play no editar */
+.detail-tools{
+  justify-content:space-between!important;
+  align-items:center!important;
+  gap:14px!important;
+}
+.detail-play-btn{
+  width:98px!important;
+  height:48px!important;
+  border:0!important;
+  border-radius:999px!important;
+  background:linear-gradient(180deg,#ff2028,#d90412)!important;
+  color:#fff!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  box-shadow:0 18px 42px rgba(229,9,20,.44),inset 0 1px 0 rgba(255,255,255,.22)!important;
+  backdrop-filter:blur(18px) saturate(1.25)!important;
+  -webkit-backdrop-filter:blur(18px) saturate(1.25)!important;
+}
+.detail-play-btn:active{transform:scale(.96)}
+.detail-play-btn:before{
+  content:"";
+  width:0;height:0;
+  border-top:12px solid transparent;
+  border-bottom:12px solid transparent;
+  border-left:18px solid currentColor;
+  margin-left:5px;
+  filter:drop-shadow(0 1px 4px rgba(0,0,0,.35));
+}
+.detail-play-btn.hidden{display:none!important}
+.edit-title-row{
+  display:flex!important;
+  align-items:flex-start!important;
+  justify-content:space-between!important;
+  gap:12px!important;
+  margin:0 0 8px!important;
+}
+.edit-title-row h2{margin:0!important;align-self:center!important}
+.edit-save-top{
+  width:136px!important;
+  height:44px!important;
+  border-radius:0!important;
+  flex:0 0 auto!important;
+  box-shadow:0 10px 0 rgba(0,0,0,.62),0 18px 42px rgba(229,160,13,.22)!important;
+}
+.edit-media-play-row{
+  display:grid!important;
+  grid-template-columns:118px 1fr!important;
+  gap:18px!important;
+  align-items:end!important;
+  margin:12px 0 0!important;
+}
+.edit-media-play-row .cover-preview{
+  margin:0!important;
+  width:118px!important;
+  justify-self:start!important;
+}
+.play-url-field{
+  margin:0 0 22px!important;
+  align-self:end!important;
+  color:var(--plex)!important;
+  text-align:right!important;
+  letter-spacing:.04em!important;
+}
+.play-url-field input{
+  text-align:left!important;
+  margin-top:7px!important;
+}
+#editMovieForm{
+  background:linear-gradient(145deg,rgba(28,27,34,.58),rgba(6,6,9,.74)),radial-gradient(circle at 20% 8%,rgba(229,9,20,.16),transparent 22rem)!important;
+  border:1px solid rgba(255,255,255,.16)!important;
+  box-shadow:0 -28px 90px rgba(0,0,0,.64),inset 0 1px 0 rgba(255,255,255,.10)!important;
+  backdrop-filter:blur(26px) saturate(1.38)!important;
+  -webkit-backdrop-filter:blur(26px) saturate(1.38)!important;
+}
+#editMovieForm .edit-actions{
+  grid-template-columns:1fr 1fr!important;
+  gap:28px!important;
+  margin-top:14px!important;
+}
+#editMovieForm .delete-movie{
+  height:40px!important;
+  border-radius:0!important;
+  background:linear-gradient(180deg,rgba(151,20,24,.82),rgba(80,8,12,.88))!important;
+  color:#fff!important;
+  border:0!important;
+  font-size:12px!important;
+  font-weight:950!important;
+  box-shadow:0 8px 0 rgba(0,0,0,.55)!important;
+}
+@media(max-width:380px){
+  .detail-play-btn{width:82px!important;height:44px!important}
+  .edit-save-top{width:118px!important}
+  .edit-media-play-row{grid-template-columns:104px 1fr!important;gap:14px!important}
+  .edit-media-play-row .cover-preview{width:104px!important}
+}
+
+
+/* Ajustes solicitados: menu em ordem alfabética, sem recentes, botões modernos na edição */
+.edit-save-top{
+  border-radius:14px!important;
+  background:linear-gradient(180deg,#ffbd2a,#e79a00)!important;
+  color:#090909!important;
+  border:1px solid rgba(255,255,255,.20)!important;
+  box-shadow:0 16px 34px rgba(229,160,13,.28),inset 0 1px 0 rgba(255,255,255,.28)!important;
+}
+.edit-save-top:active{transform:scale(.97)!important}
+#editMovieForm .delete-movie{
+  border-radius:14px!important;
+  border:1px solid rgba(229,9,20,.38)!important;
+  background:linear-gradient(180deg,rgba(229,9,20,.34),rgba(104,10,16,.62))!important;
+  color:#fff!important;
+  box-shadow:0 16px 34px rgba(229,9,20,.20),inset 0 1px 0 rgba(255,255,255,.15)!important;
+}
+#editMovieForm .ghost{
+  border-radius:14px!important;
+  border:1px solid rgba(255,255,255,.14)!important;
+  background:rgba(255,255,255,.10)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.10)!important;
+}
+#editMovieForm .edit-actions{gap:10px!important}
+.rail-note{display:none!important}
+
 </style>
 </head>
 <body>
@@ -432,12 +558,12 @@ button,input{font:inherit}button{cursor:pointer}a{color:inherit;text-decoration:
     </form>
   </dialog>
   <dialog class="sheet" id="settings"><form method="dialog" class="sheet-card"><div class="handle"></div><h2>Capas automáticas</h2><p>Esta versão tenta carregar capas automaticamente pela Wikipédia. Para capas oficiais mais consistentes, cole um token de leitura do TMDB. Ele fica salvo apenas neste navegador.</p><label class="field">Token TMDB<input id="tokenInput" type="password" autocomplete="off" placeholder="Opcional"></label><div class="sheet-actions"><button type="button" class="ghost" id="clearToken">Limpar token</button><button type="button" class="ghost" id="clearCovers">Recarregar capas</button><button type="button" class="save" id="saveToken">Salvar</button></div><div class="sheet-actions backup-actions"><button type="button" class="ghost" id="exportBackup">Exportar backup</button><label class="backup-import" for="importBackup">Importar backup<input id="importBackup" type="file" accept="application/json" hidden></label></div><button class="close-sheet">Fechar</button></form></dialog>
-  <dialog class="detail" id="detail"><article class="detail-card"><button type="button" class="detail-close" id="closeDetail" aria-label="Fechar"></button><div class="detail-backdrop" id="detailBackdrop"></div><div class="detail-body"><p class="detail-kicker" id="detailKicker"></p><h2 id="detailTitle"></h2><p class="detail-meta" id="detailMeta"></p><p class="detail-raw" id="detailRaw"></p><div class="detail-tools"><button type="button" class="detail-edit" id="editDetailMovie">Editar filme</button></div></div></article></dialog>
+  <dialog class="detail" id="detail"><article class="detail-card"><button type="button" class="detail-close" id="closeDetail" aria-label="Fechar"></button><div class="detail-backdrop" id="detailBackdrop"></div><div class="detail-body"><p class="detail-kicker" id="detailKicker"></p><h2 id="detailTitle"></h2><p class="detail-meta" id="detailMeta"></p><p class="detail-raw" id="detailRaw"></p><div class="detail-tools"><button type="button" class="detail-edit" id="editDetailMovie">Editar filme</button><button type="button" class="detail-play-btn hidden" id="detailPlayMovie" aria-label="Abrir link do play"></button></div></div></article></dialog>
   <dialog class="sheet" id="editMovieSheet">
     <form class="sheet-card add-card" id="editMovieForm">
       <div class="handle"></div>
       <p class="sheet-eyebrow">Editar título</p>
-      <h2>Editar filme</h2>
+      <div class="edit-title-row"><h2>Editar filme</h2><button type="submit" class="save edit-save-top">Salvar edição</button></div>
       <div class="add-form-grid">
         <label class="field">Nome do filme<input id="editMovieTitle" type="text" autocomplete="off" required placeholder="Ex: Interestelar"></label>
         <div class="add-compact-row">
@@ -452,10 +578,14 @@ button,input{font:inherit}button{cursor:pointer}a{color:inherit;text-decoration:
       <label class="field cover-url-field">Cole o link da capa do filme
         <input id="editMovieCoverUrl" type="url" inputmode="url" autocomplete="off" placeholder="https://site.com/capa-do-filme.jpg">
       </label>
-      <div class="cover-preview" id="editCoverPreview"><span>Prévia da capa</span></div>
+      <div class="edit-media-play-row">
+        <div class="cover-preview" id="editCoverPreview"><span>Prévia da capa</span></div>
+        <label class="field play-url-field">LINK DO PLAY:
+          <input id="editMoviePlayUrl" type="url" inputmode="url" autocomplete="off" placeholder="LINK DO FILM">
+        </label>
+      </div>
       <p class="add-status" id="editStatus"></p>
-      <div class="danger-zone"><button type="button" class="delete-movie" id="deleteEditMovie">Excluir filme</button></div>
-      <div class="sheet-actions edit-actions"><button type="button" class="ghost" id="cancelEditMovie">Cancelar</button><button type="submit" class="save">Salvar edição</button></div>
+      <div class="sheet-actions edit-actions"><button type="button" class="ghost" id="cancelEditMovie">Cancelar</button><button type="button" class="delete-movie" id="deleteEditMovie">Excluir filmes</button></div>
     </form>
   </dialog>
 
@@ -764,6 +894,7 @@ const app = {
   detailKicker: document.querySelector('#detailKicker'),
   detailMeta: document.querySelector('#detailMeta'),
   detailRaw: document.querySelector('#detailRaw'),
+  detailPlayMovie: document.querySelector('#detailPlayMovie'),
   tokenInput: document.querySelector('#tokenInput'),
   exportBackup: document.querySelector('#exportBackup'),
   importBackup: document.querySelector('#importBackup'),
@@ -786,6 +917,7 @@ const app = {
   editMovieSeenDate: document.querySelector('#editMovieSeenDate'),
   editMovieCategory: document.querySelector('#editMovieCategory'),
   editMovieRatingNote: document.querySelector('#editMovieRatingNote'),
+  editMoviePlayUrl: document.querySelector('#editMoviePlayUrl'),
   editSeriesFields: document.querySelector('#editSeriesFields'),
   editMovieSeasons: document.querySelector('#editMovieSeasons'),
   editMovieEpisodes: document.querySelector('#editMovieEpisodes'),
@@ -972,16 +1104,47 @@ function statCards(){
   app.stats.innerHTML=cards.map(([v,l,c])=>`<article class="stat ${c}"><strong>${esc(v)}</strong><span>${esc(l)}</span></article>`).join('');
 }
 function chips(){
- const names=['Todos','2020+','Clássicos','Notas',...categoryOrder().slice(0,10)];
- app.chips.innerHTML=names.map((name,i)=>`<button class="chip ${i===0?'active':''} ${name==='Notas'?'gold':''}" data-chip="${esc(name)}">${esc(name)}</button>`).join('');
- app.chips.onclick=e=>{const b=e.target.closest('.chip'); if(!b) return; app.chips.querySelectorAll('.chip').forEach(x=>x.classList.remove('active')); b.classList.add('active'); const v=b.dataset.chip; app.search.value=v==='Todos'?'':v; if(v==='Todos') showHome(); else showSearch(v)};
+ const items=[
+   {label:'Todos', value:'Todos', cls:''},
+   ...[{label:'Clássicos', value:'Clássicos', cls:''},{label:'Notas', value:'Notas', cls:'gold'}],
+   ...categoryOrder().map(c=>({label:displayChipName(c), value:c, cls:norm(c)==='8 estrelas'?'gold':''}))
+ ];
+ const seen=new Set();
+ const cleanItems=[];
+ for(const item of items){
+   const key=norm(item.label);
+   if(!key || seen.has(key)) continue;
+   seen.add(key); cleanItems.push(item);
+ }
+ const first=cleanItems.filter(i=>i.value==='Todos');
+ const rest=cleanItems.filter(i=>i.value!=='Todos').sort((a,b)=>a.label.localeCompare(b.label,'pt-BR',{numeric:true,sensitivity:'base'}));
+ const finalItems=[...first,...rest];
+ app.chips.innerHTML=finalItems.map((item,i)=>`<button class="chip ${i===0?'active':''} ${item.cls||''}" data-chip="${esc(item.value)}" data-label="${esc(item.label)}">${esc(item.label)}</button>`).join('');
+ app.chips.onclick=e=>{
+   const b=e.target.closest('.chip'); if(!b) return;
+   app.chips.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));
+   b.classList.add('active');
+   const v=b.dataset.chip; const label=b.dataset.label||v;
+   app.search.value=v==='Todos'?'':label;
+   if(v==='Todos') showHome(); else showSearch(v);
+ };
+}
+function displayCategoryName(name){
+  const n=norm(name);
+  if(n==='8 estrelas' || n==='8estrelas') return '8★';
+  return String(name||'');
+}
+function displayChipName(name){
+  const n=norm(name);
+  if(n==='dramas') return 'Drama';
+  return displayCategoryName(name);
 }
 function categoryOrder(){
   const arr=[];
   [...loadSavedCategories(), ...movies.map(m=>m.category).filter(Boolean)].forEach(c=>{
     if(c && !arr.some(x=>norm(x)===norm(c))) arr.push(c);
   });
-  return arr;
+  return arr.sort((a,b)=>displayCategoryName(a).localeCompare(displayCategoryName(b),'pt-BR',{numeric:true,sensitivity:'base'}));
 }
 function resolveCategoryName(name){
   const clean=String(name||'').trim();
@@ -1014,15 +1177,14 @@ function rail(title, list, note='', wide=false, id=''){
   const data=all.slice(0,60);
   if(!data.length) return '';
   const count=all.length;
-  return `<section class="rail ${wide?'hero-rail':''}" ${id?`id="${id}"`:''}><div class="rail-head"><h2>${esc(title)} <span class="rail-count">| ${esc(filmLabel(count))}</span></h2>${note?`<span class="rail-note">${esc(note)}</span>`:''}</div><div class="rail-scroll">${data.map(m=>poster(m,wide)).join('')}</div></section>`;
+  const shownTitle=displayCategoryName(title);
+  return `<section class="rail ${wide?'hero-rail':''}" ${id?`id="${id}"`:''}><div class="rail-head"><h2>${esc(shownTitle)} <span class="rail-count">| ${esc(filmLabel(count))}</span></h2>${note?`<span class="rail-note">${esc(note)}</span>`:''}</div><div class="rail-scroll">${data.map(m=>poster(m,wide)).join('')}</div></section>`;
 }
 function showHome(){
   app.results.classList.add('hidden'); app.rails.classList.remove('hidden');
   const u=unique(movies);
-  const latest=u.filter(m=>m.year).sort(byYearDesc);
   const notas=u.filter(m=>hasNotes(m));
   const html=[];
-  html.push(rail('Lançamentos mais recentes', latest, 'rolagem lateral', true, 'recentes'));
   html.push(rail('Notas', notas, 'filmes com ★ estrelas', false, 'notas'));
   html.push(`<div class="section-title" id="generos">Categorias da lista</div>`);
   for(const cat of categoryOrder()) html.push(rail(cat, movies.filter(m=>norm(m.category)===norm(cat)), '', false, categorySectionId(cat)));
@@ -1115,6 +1277,11 @@ function openDetail(id){
   const seriesMeta = seriesInfo ? formatSeriesInfo(seriesInfo) : null;
   app.detailMeta.textContent=[m.year||'sem ano', seriesMeta, rating(m)||(m.stars?'Nota por ★ estrelas':'sem nota por ★ estrelas'), noteDisplay(m)?`Nota ${noteDisplay(m)}`:(m.stars?`${m.stars} ★ estrelas`:null), m.seenDate?`visto em ${formatDate(m.seenDate)}`:null].filter(Boolean).join(' • ');
   app.detailRaw.textContent=m.raw||''; app.detailBackdrop.style.backgroundImage='';
+  const playUrl = moviePlayUrl(m);
+  if(app.detailPlayMovie){
+    app.detailPlayMovie.dataset.url = playUrl || '';
+    app.detailPlayMovie.classList.toggle('hidden', !playUrl);
+  }
   coverFor(m).then(url=>{if(url) app.detailBackdrop.style.backgroundImage=`url("${url}")`});
   app.detail.showModal();
 }
@@ -1139,6 +1306,22 @@ function validImageUrl(value){
     const u=new URL(url);
     return ['http:','https:'].includes(u.protocol) ? url : '';
   }catch{return ''}
+}
+function validServerUrl(value){
+  const url=String(value||'').trim();
+  if(!url) return '';
+  try{
+    const u=new URL(url);
+    return ['http:','https:'].includes(u.protocol) ? url : '';
+  }catch{return ''}
+}
+function moviePlayUrl(m){
+  return validServerUrl(m?.playUrl || m?.playLink || m?.serverUrl || m?.linkPlay || '');
+}
+function openPlayUrl(url){
+  const link=validServerUrl(url);
+  if(!link) return;
+  window.open(link,'_blank','noopener,noreferrer');
 }
 function syncCoverUrlField(input, preview, status, setCover){
   const raw=String(input?.value||'').trim();
@@ -1234,6 +1417,7 @@ function openEditForm(id){
   app.editMovieSeenDate.value = formatDate(m.seenDate || '');
   app.editMovieCategory.value = m.category || '';
   if(app.editMovieRatingNote) app.editMovieRatingNote.value = noteOptionValue(m);
+  if(app.editMoviePlayUrl) app.editMoviePlayUrl.value = moviePlayUrl(m);
   const seriesInfo = parseSeriesInfo(m) || {};
   if(app.editMovieSeasons) app.editMovieSeasons.value = seriesInfo.seasons || '';
   if(app.editMovieEpisodes) app.editMovieEpisodes.value = seriesInfo.episodes || '';
@@ -1258,6 +1442,9 @@ async function saveEditedMovie(e){
   const seenDate=normalizeSeenDateInput(app.editMovieSeenDate.value||'');
   const category=resolveCategoryName(app.editMovieCategory.value.trim()||'Sem categoria');
   const note=noteOptionData(app.editMovieRatingNote?.value||'0');
+  const playUrlRaw=String(app.editMoviePlayUrl?.value||'').trim();
+  const playUrl=playUrlRaw ? validServerUrl(playUrlRaw) : '';
+  if(playUrlRaw && !playUrl){ app.editStatus.textContent='Cole um link do play válido começando com http:// ou https://'; return; }
   const originalSeriesInfo=parseSeriesInfo(original)||{};
   const seasons=app.editMovieSeasons ? (Number(app.editMovieSeasons.value)||0) : (Number(original.seasons)||Number(originalSeriesInfo.seasons)||0);
   const episodes=app.editMovieEpisodes ? (Number(app.editMovieEpisodes.value)||0) : (Number(original.episodes)||Number(originalSeriesInfo.episodes)||0);
@@ -1274,6 +1461,7 @@ async function saveEditedMovie(e){
     stars:note.stars,
     rating:note.rating,
     noteSymbol:note.noteSymbol,
+    playUrl,
     seasons,
     episodes,
     coverUrl:editCoverData || original.coverUrl || '',
@@ -1449,6 +1637,7 @@ function setup(){
   document.querySelector('#clearToken').onclick=()=>{localStorage.removeItem(tokenKey); app.tokenInput.value='';};
   document.querySelector('#clearCovers').onclick=()=>{Object.keys(localStorage).filter(k=>k.startsWith(posterCacheKey)).forEach(k=>localStorage.removeItem(k)); showHome();};
   document.querySelector('#closeDetail').onclick=()=>app.detail.close();
+  app.detailPlayMovie?.addEventListener('click',e=>{e.stopPropagation(); openPlayUrl(app.detailPlayMovie.dataset.url||'');});
   document.querySelectorAll('.tab').forEach(tab=>tab.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));tab.classList.add('active')}));
 }
 if('serviceWorker' in navigator && location.protocol.startsWith('http')){navigator.serviceWorker.register('service-worker.js').catch(()=>{})}
