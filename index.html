@@ -411,6 +411,28 @@ button,input{font:inherit}button{cursor:pointer}a{color:inherit;text-decoration:
   text-align:left!important;
   margin-top:7px!important;
 }
+.edit-side-fields{
+  display:grid!important;
+  gap:10px!important;
+  align-self:end!important;
+}
+.edit-series-mini{
+  display:grid!important;
+  grid-template-columns:1fr 1fr!important;
+  gap:10px!important;
+}
+.edit-series-mini.hidden{display:grid!important}
+.edit-series-mini .field{
+  color:var(--plex)!important;
+  text-transform:uppercase!important;
+  letter-spacing:.04em!important;
+  font-size:11px!important;
+}
+.edit-series-mini input{
+  height:38px!important;
+  text-align:center!important;
+  font-weight:950!important;
+}
 #editMovieForm{
   background:linear-gradient(145deg,rgba(28,27,34,.58),rgba(6,6,9,.74)),radial-gradient(circle at 20% 8%,rgba(229,9,20,.16),transparent 22rem)!important;
   border:1px solid rgba(255,255,255,.16)!important;
@@ -580,9 +602,15 @@ button,input{font:inherit}button{cursor:pointer}a{color:inherit;text-decoration:
       </label>
       <div class="edit-media-play-row">
         <div class="cover-preview" id="editCoverPreview"><span>Prévia da capa</span></div>
-        <label class="field play-url-field">LINK DO PLAY:
-          <input id="editMoviePlayUrl" type="url" inputmode="url" autocomplete="off" placeholder="LINK DO FILM">
-        </label>
+        <div class="edit-side-fields">
+          <div class="edit-series-mini" id="editSeriesFields">
+            <label class="field mini-series-field">TEMP<input id="editMovieSeasons" type="number" min="0" max="99" inputmode="numeric" placeholder="0"></label>
+            <label class="field mini-series-field">EPI<input id="editMovieEpisodes" type="number" min="0" max="9999" inputmode="numeric" placeholder="0"></label>
+          </div>
+          <label class="field play-url-field">LINK DO PLAY:
+            <input id="editMoviePlayUrl" type="url" inputmode="url" autocomplete="off" placeholder="LINK DO FILM">
+          </label>
+        </div>
       </div>
       <p class="add-status" id="editStatus"></p>
       <div class="sheet-actions edit-actions"><button type="button" class="ghost" id="cancelEditMovie">Cancelar</button><button type="button" class="delete-movie" id="deleteEditMovie">Excluir filmes</button></div>
@@ -598,6 +626,7 @@ const customKey = 'fabervi_custom_movies_v1';
 const editKey = 'fabervi_movie_edits_v1';
 const deletedKey = 'fabervi_deleted_movies_v1';
 const categoryKey = 'fabervi_categories_v1';
+const categoryAliasKey = 'fabervi_category_aliases_v1';
 const signatureEditKey = 'fabervi_movie_signature_edits_v1';
 const deletedSignatureKey = 'fabervi_deleted_movie_signatures_v1';
 const migrationFlagKey = 'fabervi_persistence_migration_20260625';
@@ -641,10 +670,28 @@ function loadSavedCategories(){
     return Array.isArray(data) ? data.filter(Boolean) : [];
   }catch{return []}
 }
+function hiddenCategoryName(name){return norm(name)==='adicionados'}
+function sanitizeCategoryName(name, fallback='Sem categoria'){
+  const clean=String(name||'').trim();
+  if(!clean || hiddenCategoryName(clean)) return fallback;
+  return clean;
+}
 function saveSavedCategories(list){
   const cleaned=[];
-  list.map(x=>String(x||'').trim()).filter(Boolean).forEach(c=>{if(!cleaned.some(x=>norm(x)===norm(c))) cleaned.push(c)});
+  list.map(x=>sanitizeCategoryName(x,'')).filter(Boolean).forEach(c=>{if(!cleaned.some(x=>norm(x)===norm(c))) cleaned.push(c)});
   localStorage.setItem(categoryKey, JSON.stringify(cleaned));
+}
+function loadCategoryAliases(){
+  const data=readJsonStorage(categoryAliasKey, {});
+  return data && typeof data==='object' && !Array.isArray(data) ? data : {};
+}
+function saveCategoryAliases(map){
+  writeJsonStorage(categoryAliasKey, map && typeof map==='object' ? map : {});
+}
+function applyCategoryAlias(name){
+  const clean=sanitizeCategoryName(name);
+  const aliases=loadCategoryAliases();
+  return aliases[norm(clean)] || clean;
 }
 function readJsonStorage(key, fallback){
   try{
@@ -685,7 +732,7 @@ function normalizeLegacyMovie(input={}){
   const title=String(input.title || input.name || input.nome || '').trim();
   const yearNumber=Number(input.year || input.ano || '');
   const starsNumber=Number(input.stars || input.estrelas || input.ratingStars || 0);
-  const category=String(input.category || input.categoria || input.genre || input.genero || 'Adicionados').trim() || 'Adicionados';
+  const category=applyCategoryAlias(sanitizeCategoryName(input.category || input.categoria || input.genre || input.genero));
   return {
     id: input.id || input.localId || input.uuid || nextManualId(),
     title,
@@ -763,7 +810,6 @@ function migrateLegacyStorage(){
     saveCustomMovies(custom);
     saveMovieEdits(edits);
     saveMovieSignatureEdits(sigEdits);
-    saveSavedCategories([...loadSavedCategories(), category]);
     saveSavedCategories(cats);
     localStorage.setItem(migrationFlagKey,'1');
   }catch(err){console.warn('Migração de dados antigos não concluída',err)}
@@ -870,8 +916,8 @@ function applyMovieEdits(list){
   const sigEdits = loadMovieSignatureEdits();
   return list.map(movie=>{
     const patch = edits[String(movie.id)] || sigEdits[movieEditSignature(movie)];
-    if(!patch) return movie;
-    return {...movie, ...patch, id:movie.id, source:movie.source, type:patch.type || movie.type};
+    const merged = patch ? {...movie, ...patch, id:movie.id, source:movie.source, type:patch.type || movie.type} : movie;
+    return {...merged, category:applyCategoryAlias(merged.category)};
   });
 }
 migrateLegacyStorage();
@@ -1094,7 +1140,7 @@ function coverForSync(m){
 let coverObserver=null;
 function colorFor(m){return accents[hash(m.title)%accents.length]}
 function statCards(){
-  const u=unique(movies); const cats=new Set(movies.map(m=>m.category).filter(Boolean));
+  const u=unique(movies); const cats=new Set(movies.map(m=>m.category).filter(c=>c && !hiddenCategoryName(c)));
   const withYear=u.filter(m=>m.year); const min=withYear.length?Math.min(...withYear.map(m=>m.year)):0; const max=withYear.length?Math.max(...withYear.map(m=>m.year)):0;
   const assistidos=watchedTotalCount(movies);
   const somaEp=seriesEpisodeTotal(movies);
@@ -1142,15 +1188,16 @@ function displayChipName(name){
 function categoryOrder(){
   const arr=[];
   [...loadSavedCategories(), ...movies.map(m=>m.category).filter(Boolean)].forEach(c=>{
-    if(c && !arr.some(x=>norm(x)===norm(c))) arr.push(c);
+    const clean=applyCategoryAlias(c);
+    if(clean && !hiddenCategoryName(clean) && !arr.some(x=>norm(x)===norm(clean))) arr.push(clean);
   });
   return arr.sort((a,b)=>displayCategoryName(a).localeCompare(displayCategoryName(b),'pt-BR',{numeric:true,sensitivity:'base'}));
 }
 function resolveCategoryName(name){
-  const clean=String(name||'').trim();
-  if(!clean) return 'Adicionados';
-  const existing=categoryOrder().find(c=>norm(c)===norm(clean));
-  return existing || clean;
+  const clean=sanitizeCategoryName(name);
+  const aliased=applyCategoryAlias(clean);
+  const existing=categoryOrder().find(c=>norm(c)===norm(aliased));
+  return existing || aliased;
 }
 function categorySectionId(cat){
   const slug=norm(cat).replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
@@ -1374,7 +1421,7 @@ async function addManualMovie(e){
   const title=app.movieTitle.value.trim();
   const year=Number(app.movieYear.value)||null;
   const seenDate=normalizeSeenDateInput(app.movieSeenDate.value||'');
-  const category=resolveCategoryName(app.movieCategory.value.trim()||'Adicionados');
+  const category=resolveCategoryName(app.movieCategory.value.trim()||'Sem categoria');
   const note=noteOptionData(app.movieRatingNote?.value||'0');
   if(!title){ app.addStatus.textContent='Informe o nome do filme.'; return; }
   const movie={
@@ -1399,10 +1446,7 @@ async function addManualMovie(e){
 }
 function updateEditSeriesFields(){
   if(!app.editSeriesFields) return;
-  const original=movies.find(x=>String(x.id)===String(editingMovieId));
-  const typed=norm(app.editMovieCategory?.value||'');
-  const should=Boolean(original && (isSeriesLike(original)||typed.includes('serie')||typed.includes('dorama')||typed.includes('anime')));
-  app.editSeriesFields.classList.toggle('hidden', !should);
+  app.editSeriesFields.classList.remove('hidden');
 }
 function openEditForm(id){
   const m=movies.find(x=>String(x.id)===String(id));
@@ -1496,7 +1540,7 @@ function renderCategoryManager(){
   }
 }
 function addCategoryName(){
-  const name=app.newCategoryName?.value.trim();
+  const name=sanitizeCategoryName(app.newCategoryName?.value.trim(),'');
   if(!name){ if(app.categoryStatus) app.categoryStatus.textContent='Digite um nome para a categoria.'; return; }
   const cats=categoryOrder();
   if(cats.some(c=>norm(c)===norm(name))){ if(app.categoryStatus) app.categoryStatus.textContent='Essa categoria já existe.'; return; }
@@ -1512,7 +1556,10 @@ function renameCategory(){
   if(norm(oldName)===norm(newName)){ if(app.categoryStatus) app.categoryStatus.textContent='O nome continua igual.'; return; }
   const existing=categoryOrder().filter(c=>norm(c)!==norm(oldName));
   if(existing.some(c=>norm(c)===norm(newName))){ if(app.categoryStatus) app.categoryStatus.textContent='Já existe uma categoria com esse nome.'; return; }
-  const custom=loadCustomMovies().map(m=>norm(m.category)===norm(oldName)?{...m,category:newName}:m);
+  const aliases=loadCategoryAliases();
+  aliases[norm(oldName)]=newName;
+  saveCategoryAliases(aliases);
+  const custom=loadCustomMovies().map(m=>norm(applyCategoryAlias(m.category))===norm(newName)||norm(m.category)===norm(oldName)?{...m,category:newName}:m);
   saveCustomMovies(custom);
   const edits=loadMovieEdits();
   const sigEdits=loadMovieSignatureEdits();
@@ -1524,14 +1571,14 @@ function renameCategory(){
   });
   saveMovieEdits(edits);
   saveMovieSignatureEdits(sigEdits);
-  const saved=loadSavedCategories().map(c=>norm(c)===norm(oldName)?newName:c);
+  const saved=loadSavedCategories().filter(c=>norm(c)!==norm(oldName)).map(c=>norm(c)===norm(newName)?newName:c);
   saveSavedCategories([...saved,newName]);
   refreshMovies(); statCards(); chips(); populateCategories(); renderCategoryManager();
   const q=app.search.value.trim(); if(q) showSearch(q); else showHome();
   if(app.categoryStatus) app.categoryStatus.textContent='Categoria renomeada em todos os filmes.';
 }
 function setupCategoryManager(){
-  app.openCategoryManager?.addEventListener('click',()=>{renderCategoryManager(); if(app.categoryStatus) app.categoryStatus.textContent=''; app.categorySheet.showModal();});
+  app.openCategoryManager?.addEventListener('click',()=>{renderCategoryManager(); if(app.categorySelect && app.renameCategoryName) app.renameCategoryName.value=app.categorySelect.value||''; if(app.categoryStatus) app.categoryStatus.textContent=''; app.categorySheet.showModal();});
   app.addCategoryBtn?.addEventListener('click',addCategoryName);
   app.renameCategoryBtn?.addEventListener('click',renameCategory);
   app.categorySelect?.addEventListener('change',()=>{if(app.renameCategoryName) app.renameCategoryName.value=app.categorySelect.value;});
@@ -1620,6 +1667,7 @@ function setupAddMovie(){
   });
 }
 function setup(){
+  saveSavedCategories(loadSavedCategories());
   statCards(); chips(); populateCategories(); showHome(); setupAddMovie(); setupEditMovie(); setupCategoryManager(); renderYearOptions();
   app.exportBackup?.addEventListener('click',exportBackup);
   app.importBackup?.addEventListener('change',e=>{importBackupFile(e.target.files?.[0]); e.target.value='';});
