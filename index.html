@@ -1003,7 +1003,7 @@ function importMovieLibrary(list){
     movie.category=applyCategoryAlias(sanitizeCategoryName(movie.category));
     if(movie.category && !cats.some(x=>norm(x)===norm(movie.category))) cats.push(movie.category);
     const base=findBaseMovieMatch(movie);
-    if(base && !usedBaseIds.has(String(base.id))){
+    if(base){
       usedBaseIds.add(String(base.id));
       const patch=buildPatchFromLegacy(movie, base);
       if(Object.keys(patch).length){
@@ -1012,7 +1012,11 @@ function importMovieLibrary(list){
         sigEdits[movieEditSignature(movie)]={...(sigEdits[movieEditSignature(movie)]||{}),...patch};
       }
     }else{
-      custom.push({...movie,id:movie.id || nextManualId(),source:'manual'});
+      const candidate={...movie,id:movie.id || nextManualId(),source:'manual'};
+      const key=displayDedupeKey(candidate);
+      const index=custom.findIndex(m=>displayDedupeKey(m)===key);
+      if(index>=0) custom[index]=pickDuplicateMovie(custom[index],candidate);
+      else custom.push(candidate);
     }
   });
   saveDeletedIds([]);
@@ -1143,15 +1147,41 @@ function norm(v){return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function hash(s){let h=0; for(const ch of String(s)){h=((h<<5)-h)+ch.charCodeAt(0);h|=0} return Math.abs(h)}
 function uniqueKey(m){
-  const id=String(m?.id||'').trim();
-  if(id) return `id:${id}`;
-  return `item:${norm(cleanSearchTitle(m))}|${m?.year||'s'}|${norm(m?.category||'')}|${norm(m?.raw||'')}`;
+  return displayDedupeKey(m);
+}
+function displayDedupeKey(m){
+  const title=norm(String(m?.title || m?.searchTitle || cleanSearchTitle(m) || ''));
+  const year=String(m?.year || '');
+  const category=norm(applyCategoryAlias(m?.category || ''));
+  const type=norm(typeOf(m) || m?.type || '');
+  return `item:${title}|${year}|${category}|${type}`;
+}
+function duplicatePriority(m){
+  let score=0;
+  if(m?.source==='manual') score+=8;
+  if(m?.coverUrl) score+=6;
+  if(moviePlayUrl(m)) score+=5;
+  if(Number(m?.episodes)||0) score+=4;
+  if(Number(m?.seasons)||0) score+=2;
+  if(m?.seenDate) score+=2;
+  if(hasNotes(m)) score+=2;
+  if(m?.raw) score+=1;
+  return score;
+}
+function pickDuplicateMovie(current,next){
+  if(!current) return next;
+  const c=duplicatePriority(current);
+  const n=duplicatePriority(next);
+  if(n>c) return next;
+  if(n===c && String(next?.source||'')==='manual' && String(current?.source||'')!=='manual') return next;
+  return current;
 }
 function unique(list){
   const map=new Map();
-  list.forEach(m=>{
+  (Array.isArray(list)?list:[]).forEach(m=>{
+    if(!m) return;
     const k=uniqueKey(m);
-    if(!map.has(k)) map.set(k,m);
+    map.set(k,pickDuplicateMovie(map.get(k),m));
   });
   return [...map.values()];
 }
@@ -1607,7 +1637,8 @@ async function addManualMovie(e){
       raw:`${title}${year?' - '+year:''}${seriesText}${seenDate?' | visto em '+formatDate(seenDate):''}`
     };
     const list=loadCustomMovies();
-    const duplicateIndex=list.findIndex(m=>norm(m.title)===norm(movie.title) && String(m.year||'')===String(movie.year||''));
+    const duplicateKey=displayDedupeKey(movie);
+    const duplicateIndex=list.findIndex(m=>displayDedupeKey(m)===duplicateKey);
     if(duplicateIndex>=0){
       movie.id=list[duplicateIndex].id || movie.id;
       list[duplicateIndex]={...list[duplicateIndex],...movie};
