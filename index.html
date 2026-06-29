@@ -720,15 +720,21 @@ let editCoverData = '';
 let editingMovieId = null;
 let currentDetailId = null;
 function cleanCustomMovieList(list){
-  const seenIds=new Set();
+  const usedIds=new Set();
   const clean=[];
-  (Array.isArray(list)?list:[]).forEach(item=>{
-    if(!item || !item.title) return;
-    const id=String(item.id||'').trim();
-    const key=id || `${String(item.title||'').toLowerCase()}|${item.year||''}|${String(item.category||'').toLowerCase()}`;
-    if(seenIds.has(key)) return;
-    seenIds.add(key);
-    clean.push(item);
+  (Array.isArray(list)?list:[]).forEach((item,index)=>{
+    if(!item) return;
+    const title=String(item.title || item.name || item.nome || '').trim();
+    if(!title) return;
+    const movie={...item,title,searchTitle:String(item.searchTitle || item.search || title).trim() || title};
+    let id=String(movie.id || movie.localId || movie.uuid || '').trim();
+    if(!id) id=nextManualId();
+    if(usedIds.has(id)) id=`${id}-imp-${index}-${Math.random().toString(36).slice(2,6)}`;
+    usedIds.add(id);
+    movie.id=id;
+    movie.source=movie.source || 'manual';
+    movie.category=applyCategoryAlias(sanitizeCategoryName(movie.category || movie.categoria || 'Sem categoria'));
+    clean.push(movie);
   });
   return clean;
 }
@@ -837,9 +843,11 @@ function normalizeLegacyMovie(input={}){
     seenDate:legacySeenDate(input),
     stars:Number.isFinite(starsNumber) ? Math.max(0,Math.min(10,Math.round(starsNumber))) : 0,
     rating:input.rating || null,
+    noteSymbol:input.noteSymbol || input.nota || input.simboloNota || '',
     type:input.type || input.tipo || 'movie',
-    seasons:Number(input.seasons || input.temporadas || 0) || 0,
-    episodes:Number(input.episodes || input.episodios || 0) || 0,
+    seasons:Number(input.seasons || input.temporadas || input.temp || 0) || 0,
+    episodes:Number(input.episodes || input.episodios || input.epi || 0) || 0,
+    playUrl:input.playUrl || input.linkPlay || input.link_do_play || input.serverUrl || input.urlPlay || '',
     raw:input.raw || '',
     coverUrl:legacyCoverValue(input),
     coverKey:input.coverKey || input.capaKey || '',
@@ -858,6 +866,8 @@ function buildPatchFromLegacy(movie, base){
   if(movie.seenDate) patch.seenDate=movie.seenDate;
   if((Number(movie.stars)||0)!==(Number(base.stars)||0)) patch.stars=Number(movie.stars)||0;
   if((movie.rating||null)!==(base.rating||null)) patch.rating=movie.rating||null;
+  if((movie.noteSymbol||null)!==(base.noteSymbol||null)) patch.noteSymbol=movie.noteSymbol||null;
+  if((movie.playUrl||null)!==(base.playUrl||null)) patch.playUrl=movie.playUrl||'';
   if(movie.type && movie.type!==base.type) patch.type=movie.type;
   if(Number(movie.seasons)||0) patch.seasons=Number(movie.seasons)||0;
   if(Number(movie.episodes)||0) patch.episodes=Number(movie.episodes)||0;
@@ -898,7 +908,7 @@ function migrateLegacyStorage(){
           }
           return;
         }
-        const exists=custom.some(m=>String(m.id)===String(movie.id) || movieEditSignature(m)===movieEditSignature(movie));
+        const exists=custom.some(m=>String(m.id)===String(movie.id));
         if(!exists) custom.unshift({...movie,source:'manual'});
       });
     });
@@ -975,27 +985,71 @@ function exportBackup(){
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),500);
 }
+function importedMovieArrayFromBackup(json){
+  if(Array.isArray(json)) return json;
+  if(json && Array.isArray(json.movies)) return json.movies;
+  if(json && Array.isArray(json.filmes)) return json.filmes;
+  if(json && Array.isArray(json.titles)) return json.titles;
+  return null;
+}
+function importMovieLibrary(list){
+  const imported=(Array.isArray(list)?list:[]).map(normalizeLegacyMovie).filter(m=>m.title);
+  const custom=[];
+  const edits={};
+  const sigEdits={};
+  const cats=[];
+  const usedBaseIds=new Set();
+  imported.forEach((movie,index)=>{
+    movie.category=applyCategoryAlias(sanitizeCategoryName(movie.category));
+    if(movie.category && !cats.some(x=>norm(x)===norm(movie.category))) cats.push(movie.category);
+    const base=findBaseMovieMatch(movie);
+    if(base && !usedBaseIds.has(String(base.id))){
+      usedBaseIds.add(String(base.id));
+      const patch=buildPatchFromLegacy(movie, base);
+      if(Object.keys(patch).length){
+        edits[String(base.id)]={...(edits[String(base.id)]||{}),...patch};
+        sigEdits[movieEditSignature(base)]={...(sigEdits[movieEditSignature(base)]||{}),...patch};
+        sigEdits[movieEditSignature(movie)]={...(sigEdits[movieEditSignature(movie)]||{}),...patch};
+      }
+    }else{
+      custom.push({...movie,id:movie.id || nextManualId(),source:'manual'});
+    }
+  });
+  saveDeletedIds([]);
+  saveDeletedSignatures([]);
+  saveCustomMovies(custom);
+  saveMovieEdits(edits);
+  saveMovieSignatureEdits(sigEdits);
+  saveSavedCategories(cats);
+  localStorage.setItem(migrationFlagKey,'1');
+  return imported.length;
+}
+function repairImportedStorage(){
+  const fixed=cleanCustomMovieList(readJsonStorage(customKey, []));
+  localStorage.setItem(customKey, JSON.stringify(fixed));
+}
 function importBackupFile(file){
   if(!file) return;
   const reader=new FileReader();
   reader.onload=()=>{
     try{
       const json=JSON.parse(String(reader.result||'{}'));
+      let importedCount=null;
       if(json.keys && typeof json.keys==='object'){
         Object.entries(json.keys).forEach(([key,value])=>{if(typeof value==='string' && key!==tokenKey) localStorage.setItem(key,value)});
-      }else if(Array.isArray(json)){
-        localStorage.setItem(customKey, JSON.stringify(json));
-      }else if(Array.isArray(json.movies)){
-        localStorage.setItem('faberviux_library_state_v3', JSON.stringify(json));
-        localStorage.removeItem(migrationFlagKey);
-        migrateLegacyStorage();
+        repairImportedStorage();
       }else{
-        alert('Este arquivo de backup não parece ser do FaberViux.');
-        return;
+        const library=importedMovieArrayFromBackup(json);
+        if(Array.isArray(library)){
+          importedCount=importMovieLibrary(library);
+        }else{
+          alert('Este arquivo de backup não parece ser do FaberViux.');
+          return;
+        }
       }
       refreshMovies(); statCards(); chips(); populateCategories();
       const q=app.search.value.trim(); if(q) showSearch(q); else showHome();
-      alert('Backup importado com sucesso.');
+      alert(importedCount ? `Backup importado com sucesso: ${importedCount} registros lidos.` : 'Backup importado com sucesso.');
     }catch(err){alert('Não consegui importar este backup.');}
   };
   reader.readAsText(file);
@@ -1088,14 +1142,16 @@ const accents = ['#252631','#301b25','#173052','#2b2440','#2c281b','#162a23','#2
 function norm(v){return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()}
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function hash(s){let h=0; for(const ch of String(s)){h=((h<<5)-h)+ch.charCodeAt(0);h|=0} return Math.abs(h)}
-function uniqueKey(m){return `${norm(cleanSearchTitle(m))}-${m.year||'s'}`}
+function uniqueKey(m){
+  const id=String(m?.id||'').trim();
+  if(id) return `id:${id}`;
+  return `item:${norm(cleanSearchTitle(m))}|${m?.year||'s'}|${norm(m?.category||'')}|${norm(m?.raw||'')}`;
+}
 function unique(list){
   const map=new Map();
   list.forEach(m=>{
     const k=uniqueKey(m);
-    if(!map.has(k)){ map.set(k,m); return; }
-    const current=map.get(k);
-    if(current.source!=='manual' && m.source==='manual') map.set(k,m);
+    if(!map.has(k)) map.set(k,m);
   });
   return [...map.values()];
 }
