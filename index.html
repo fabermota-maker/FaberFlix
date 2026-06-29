@@ -559,6 +559,17 @@ button,input{font:inherit}button{cursor:pointer}a{color:inherit;text-decoration:
   .rail.eight-star-rail .rail-scroll{grid-auto-columns:calc((100% - 16px)/3)!important}
 }
 
+
+
+/* Ajuste final: topo centralizado e categorias completas */
+.hero-inner{
+  align-content:start!important;
+  justify-content:center!important;
+  padding:64px 18px 124px!important;
+}
+@media(max-width:380px){
+  .hero-inner{padding-top:62px!important;padding-bottom:122px!important;}
+}
 </style>
 </head>
 <body>
@@ -1062,7 +1073,9 @@ function importBackupFile(file){
 function rawMovieList(){
   const deleted = new Set(loadDeletedIds());
   const deletedSignatures = new Set(loadDeletedSignatures());
-  return [...baseMovies, ...loadCustomMovies()].filter(m=>!deleted.has(String(m.id)) && !deletedSignatures.has(movieEditSignature(m)));
+  const base = baseMovies.filter(m=>!deleted.has(String(m.id)) && !deletedSignatures.has(movieEditSignature(m)));
+  const custom = loadCustomMovies().filter(m=>!deleted.has(String(m.id)));
+  return [...base, ...custom];
 }
 function applyMovieEdits(list){
   const edits = loadMovieEdits();
@@ -1456,15 +1469,22 @@ function showYearFilter(year){
   app.search.value=String(y);
   app.rails.classList.add('hidden');
   app.results.classList.remove('hidden');
-  app.results.innerHTML=`<div class="results-head"><h2>${list.length} resultado${list.length===1?'':'s'}</h2><span class="rail-note">Ano ${y}</span></div><div class="results-grid">${list.slice(0,120).map(m=>poster(m)).join('')}</div>`;
+  app.results.innerHTML=`<div class="results-head"><h2>${list.length} resultado${list.length===1?'':'s'}</h2><span class="rail-note">Ano ${y}</span></div><div class="results-grid">${list.map(m=>poster(m)).join('')}</div>`;
   hydrateCovers(app.results);
 }
 function showSearch(q){
-  const list=unique(movies).filter(m=>matchQuery(m,q)).sort(byYearDesc);
+  const exactCategory=categoryOrder().find(c=>norm(c)===norm(q));
+  const baseList=unique(movies);
+  const list=(exactCategory
+    ? baseList.filter(m=>norm(applyCategoryAlias(m.category))===norm(exactCategory))
+    : baseList.filter(m=>matchQuery(m,q))
+  ).sort(byYearDesc);
+  const label=exactCategory ? displayCategoryName(exactCategory) : q;
   app.rails.classList.add('hidden'); app.results.classList.remove('hidden');
-  app.results.innerHTML=`<div class="results-head"><h2>${list.length} resultado${list.length===1?'':'s'}</h2><span class="rail-note">${esc(q)}</span></div><div class="results-grid">${list.slice(0,120).map(m=>poster(m)).join('')}</div>`;
+  app.results.innerHTML=`<div class="results-head"><h2>${list.length} resultado${list.length===1?'':'s'}</h2><span class="rail-note">${esc(label)}</span></div><div class="results-grid">${list.map(m=>poster(m)).join('')}</div>`;
   hydrateCovers(app.results);
 }
+
 function loadCoverElement(el, onLoaded){
   if(!el || el.dataset.loaded==='1') return;
   const m=movies.find(x=>String(x.id)===String(el.dataset.cover));
@@ -1636,6 +1656,8 @@ async function addManualMovie(e){
       playUrl, seasons, episodes,
       raw:`${title}${year?' - '+year:''}${seriesText}${seenDate?' | visto em '+formatDate(seenDate):''}`
     };
+    saveDeletedSignatures(loadDeletedSignatures().filter(sig=>sig!==movieEditSignature(movie)));
+    saveDeletedIds(loadDeletedIds().filter(id=>String(id)!==String(movie.id)));
     const list=loadCustomMovies();
     const duplicateKey=displayDedupeKey(movie);
     const duplicateIndex=list.findIndex(m=>displayDedupeKey(m)===duplicateKey);
