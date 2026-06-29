@@ -488,6 +488,77 @@ button,input{font:inherit}button{cursor:pointer}a{color:inherit;text-decoration:
 #editMovieForm .edit-actions{gap:10px!important}
 .rail-note{display:none!important}
 
+
+/* Ajustes: categorias completas, 8★ maior e formulário + Films alinhado ao editar */
+.rail.eight-star-rail .rail-scroll{
+  grid-auto-columns:calc((100% - 16px)/3)!important;
+  gap:8px!important;
+}
+.rail.eight-star-rail .poster-title{font-size:10.8px!important;line-height:1.08!important}
+#addMovieForm{
+  background:linear-gradient(145deg,rgba(28,27,34,.58),rgba(6,6,9,.74)),radial-gradient(circle at 20% 8%,rgba(229,9,20,.16),transparent 22rem)!important;
+  border:1px solid rgba(255,255,255,.16)!important;
+  box-shadow:0 -28px 90px rgba(0,0,0,.64),inset 0 1px 0 rgba(255,255,255,.10)!important;
+  backdrop-filter:blur(26px) saturate(1.38)!important;
+  -webkit-backdrop-filter:blur(26px) saturate(1.38)!important;
+}
+#addMovieForm .edit-actions{
+  grid-template-columns:1fr!important;
+  gap:10px!important;
+  margin-top:14px!important;
+}
+#addMovieForm .ghost{
+  border-radius:14px!important;
+  border:1px solid rgba(255,255,255,.14)!important;
+  background:rgba(255,255,255,.10)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.10)!important;
+}
+#addMovieForm .edit-media-play-row{
+  display:grid!important;
+  grid-template-columns:118px 1fr!important;
+  gap:18px!important;
+  align-items:end!important;
+  margin:12px 0 0!important;
+}
+#addMovieForm .edit-media-play-row .cover-preview{
+  margin:0!important;
+  width:118px!important;
+  justify-self:start!important;
+}
+#addMovieForm .edit-side-fields{
+  display:grid!important;
+  gap:10px!important;
+  align-self:end!important;
+}
+#addMovieForm .edit-series-mini{
+  display:grid!important;
+  grid-template-columns:1fr 1fr!important;
+  gap:10px!important;
+}
+#addMovieForm .edit-series-mini .field{
+  color:var(--plex)!important;
+  text-transform:uppercase!important;
+  letter-spacing:.04em!important;
+  font-size:11px!important;
+}
+#addMovieForm .edit-series-mini input{
+  height:38px!important;
+  text-align:center!important;
+  font-weight:950!important;
+}
+#addMovieForm .edit-save-top{
+  border-radius:14px!important;
+  background:linear-gradient(180deg,#ffbd2a,#e79a00)!important;
+  color:#090909!important;
+  border:1px solid rgba(255,255,255,.20)!important;
+  box-shadow:0 16px 34px rgba(229,160,13,.28),inset 0 1px 0 rgba(255,255,255,.28)!important;
+}
+@media(max-width:380px){
+  #addMovieForm .edit-media-play-row{grid-template-columns:104px 1fr!important;gap:14px!important}
+  #addMovieForm .edit-media-play-row .cover-preview{width:104px!important}
+  .rail.eight-star-rail .rail-scroll{grid-auto-columns:calc((100% - 16px)/3)!important}
+}
+
 </style>
 </head>
 <body>
@@ -522,7 +593,7 @@ button,input{font:inherit}button{cursor:pointer}a{color:inherit;text-decoration:
     <form class="sheet-card add-card" id="addMovieForm">
       <div class="handle"></div>
       <p class="sheet-eyebrow">Novo título</p>
-      <h2>Adicionar filme</h2>
+      <div class="edit-title-row"><h2>Adicionar filme</h2><button type="submit" class="save edit-save-top">Adicionar filme</button></div>
       <div class="add-form-grid">
         <label class="field">Nome do filme<input id="movieTitle" type="text" autocomplete="off" required placeholder="Ex: Interestelar"></label>
         <div class="add-compact-row">
@@ -537,9 +608,20 @@ button,input{font:inherit}button{cursor:pointer}a{color:inherit;text-decoration:
       <label class="field cover-url-field">Cole o link da capa do filme
         <input id="movieCoverUrl" type="url" inputmode="url" autocomplete="off" placeholder="https://site.com/capa-do-filme.jpg">
       </label>
-      <div class="cover-preview" id="coverPreview"><span>Prévia da capa</span></div>
+      <div class="edit-media-play-row">
+        <div class="cover-preview" id="coverPreview"><span>Prévia da capa</span></div>
+        <div class="edit-side-fields">
+          <div class="edit-series-mini" id="movieSeriesFields">
+            <label class="field mini-series-field">TEMP<input id="movieSeasons" type="number" min="0" max="99" inputmode="numeric" placeholder="0"></label>
+            <label class="field mini-series-field">EPI<input id="movieEpisodes" type="number" min="0" max="9999" inputmode="numeric" placeholder="0"></label>
+          </div>
+          <label class="field play-url-field">LINK DO PLAY:
+            <input id="moviePlayUrl" type="url" inputmode="url" autocomplete="off" placeholder="LINK DO FILM">
+          </label>
+        </div>
+      </div>
       <p class="add-status" id="addStatus"></p>
-      <div class="sheet-actions add-actions"><button type="button" class="ghost" id="cancelAddMovie">Cancelar</button><button type="submit" class="save">Adicionar filme</button></div>
+      <div class="sheet-actions edit-actions add-actions"><button type="button" class="ghost" id="cancelAddMovie">Cancelar</button></div>
     </form>
   </dialog>
   <dialog class="sheet" id="categorySheet">
@@ -637,14 +719,27 @@ let manualCoverData = '';
 let editCoverData = '';
 let editingMovieId = null;
 let currentDetailId = null;
+function cleanCustomMovieList(list){
+  const seenIds=new Set();
+  const clean=[];
+  (Array.isArray(list)?list:[]).forEach(item=>{
+    if(!item || !item.title) return;
+    const id=String(item.id||'').trim();
+    const key=id || `${String(item.title||'').toLowerCase()}|${item.year||''}|${String(item.category||'').toLowerCase()}`;
+    if(seenIds.has(key)) return;
+    seenIds.add(key);
+    clean.push(item);
+  });
+  return clean;
+}
 function loadCustomMovies(){
   try{
     const data = JSON.parse(localStorage.getItem(customKey) || '[]');
-    return Array.isArray(data) ? data : [];
+    return cleanCustomMovieList(data);
   }catch{return []}
 }
 function saveCustomMovies(list){
-  localStorage.setItem(customKey, JSON.stringify(list));
+  localStorage.setItem(customKey, JSON.stringify(cleanCustomMovieList(list)));
 }
 function loadMovieEdits(){
   try{
@@ -951,6 +1046,9 @@ const app = {
   movieSeenDate: document.querySelector('#movieSeenDate'),
   movieCategory: document.querySelector('#movieCategory'),
   movieRatingNote: document.querySelector('#movieRatingNote'),
+  moviePlayUrl: document.querySelector('#moviePlayUrl'),
+  movieSeasons: document.querySelector('#movieSeasons'),
+  movieEpisodes: document.querySelector('#movieEpisodes'),
   movieCoverInput: document.querySelector('#movieCoverInput'),
   movieCoverUrl: document.querySelector('#movieCoverUrl'),
   coverPreview: document.querySelector('#coverPreview'),
@@ -990,8 +1088,17 @@ const accents = ['#252631','#301b25','#173052','#2b2440','#2c281b','#162a23','#2
 function norm(v){return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()}
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function hash(s){let h=0; for(const ch of String(s)){h=((h<<5)-h)+ch.charCodeAt(0);h|=0} return Math.abs(h)}
-function uniqueKey(m){return m.source==='manual' ? `manual-${m.id}` : `${norm(m.searchTitle||m.title)}-${m.year||'s'}`}
-function unique(list){const map=new Map(); list.forEach(m=>{const k=uniqueKey(m); if(!map.has(k)) map.set(k,m)}); return [...map.values()]}
+function uniqueKey(m){return `${norm(cleanSearchTitle(m))}-${m.year||'s'}`}
+function unique(list){
+  const map=new Map();
+  list.forEach(m=>{
+    const k=uniqueKey(m);
+    if(!map.has(k)){ map.set(k,m); return; }
+    const current=map.get(k);
+    if(current.source!=='manual' && m.source==='manual') map.set(k,m);
+  });
+  return [...map.values()];
+}
 function byYearDesc(a,b){return (Number(b.year)||0)-(Number(a.year)||0)||String(a.title).localeCompare(String(b.title),'pt-BR')}
 function shuffled(list){
   return [...list].sort(()=>Math.random()-.5);
@@ -1221,11 +1328,12 @@ function poster(m, wide=false){
 }
 function rail(title, list, note='', wide=false, id=''){
   const all=unique(list).sort(byYearDesc);
-  const data=all.slice(0,60);
+  const data=all;
   if(!data.length) return '';
   const count=all.length;
   const shownTitle=displayCategoryName(title);
-  return `<section class="rail ${wide?'hero-rail':''}" ${id?`id="${id}"`:''}><div class="rail-head"><h2>${esc(shownTitle)} <span class="rail-count">| ${esc(filmLabel(count))}</span></h2>${note?`<span class="rail-note">${esc(note)}</span>`:''}</div><div class="rail-scroll">${data.map(m=>poster(m,wide)).join('')}</div></section>`;
+  const specialClass=norm(title)==='8 estrelas'||norm(title)==='8estrelas' ? 'eight-star-rail' : '';
+  return `<section class="rail ${wide?'hero-rail':''} ${specialClass}" ${id?`id="${id}"`:''}><div class="rail-head"><h2>${esc(shownTitle)} <span class="rail-count">| ${esc(filmLabel(count))}</span></h2>${note?`<span class="rail-note">${esc(note)}</span>`:''}</div><div class="rail-scroll">${data.map(m=>poster(m,wide)).join('')}</div></section>`;
 }
 function showHome(){
   app.results.classList.add('hidden'); app.rails.classList.remove('hidden');
@@ -1234,7 +1342,7 @@ function showHome(){
   const html=[];
   html.push(rail('Notas', notas, 'filmes com ★ estrelas', false, 'notas'));
   html.push(`<div class="section-title" id="generos">Categorias da lista</div>`);
-  for(const cat of categoryOrder()) html.push(rail(cat, movies.filter(m=>norm(m.category)===norm(cat)), '', false, categorySectionId(cat)));
+  for(const cat of categoryOrder()) html.push(rail(cat, u.filter(m=>norm(m.category)===norm(cat)), '', false, categorySectionId(cat)));
   app.rails.innerHTML=html.join('');
   hydrateCovers(app.rails);
 }
@@ -1337,6 +1445,9 @@ function resetAddForm(){
   app.addForm?.reset();
   if(app.movieCoverUrl) app.movieCoverUrl.value='';
   if(app.movieRatingNote) app.movieRatingNote.value='0';
+  if(app.moviePlayUrl) app.moviePlayUrl.value='';
+  if(app.movieSeasons) app.movieSeasons.value='';
+  if(app.movieEpisodes) app.movieEpisodes.value='';
   if(app.coverPreview){ app.coverPreview.classList.remove('has-image'); app.coverPreview.style.backgroundImage=''; app.coverPreview.innerHTML='<span>Prévia da capa</span>'; }
   if(app.addStatus) app.addStatus.textContent='';
 }
@@ -1418,31 +1529,50 @@ function resizeCover(file){
 function nextManualId(){ return 'manual-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,7); }
 async function addManualMovie(e){
   e.preventDefault();
-  const title=app.movieTitle.value.trim();
-  const year=Number(app.movieYear.value)||null;
-  const seenDate=normalizeSeenDateInput(app.movieSeenDate.value||'');
-  const category=resolveCategoryName(app.movieCategory.value.trim()||'Sem categoria');
-  const note=noteOptionData(app.movieRatingNote?.value||'0');
-  if(!title){ app.addStatus.textContent='Informe o nome do filme.'; return; }
-  const movie={
-    id:nextManualId(), title, searchTitle:title, year, category, seenDate,
-    stars:note.stars, rating:note.rating, noteSymbol:note.noteSymbol, type:'movie', source:'manual', coverUrl:manualCoverData,
-    raw:`${title}${year?' - '+year:''}${seenDate?' | visto em '+formatDate(seenDate):''}`
-  };
-  const list=loadCustomMovies();
-  list.unshift(movie);
-  saveSavedCategories([...loadSavedCategories(), category]);
+  if(addManualMovie.lock) return;
+  addManualMovie.lock=true;
   try{
-    saveCustomMovies(list);
-  }catch(err){
-    app.addStatus.textContent='A capa ficou pesada para salvar. Tente uma imagem menor.';
-    return;
+    const title=app.movieTitle.value.trim();
+    const year=Number(app.movieYear.value)||null;
+    const seenDate=normalizeSeenDateInput(app.movieSeenDate.value||'');
+    const category=resolveCategoryName(app.movieCategory.value.trim()||'Sem categoria');
+    const note=noteOptionData(app.movieRatingNote?.value||'0');
+    const playUrlRaw=String(app.moviePlayUrl?.value||'').trim();
+    const playUrl=playUrlRaw ? validServerUrl(playUrlRaw) : '';
+    if(playUrlRaw && !playUrl){ app.addStatus.textContent='Cole um link do play válido começando com http:// ou https://'; return; }
+    const seasons=app.movieSeasons ? (Number(app.movieSeasons.value)||0) : 0;
+    const episodes=app.movieEpisodes ? (Number(app.movieEpisodes.value)||0) : 0;
+    const seriesText=(seasons||episodes) ? ` | ${formatSeriesInfo({seasons,episodes})}` : '';
+    if(!title){ app.addStatus.textContent='Informe o nome do filme.'; return; }
+    const movie={
+      id:nextManualId(), title, searchTitle:title, year, category, seenDate,
+      stars:note.stars, rating:note.rating, noteSymbol:note.noteSymbol, type:(seasons||episodes)?'tv':'movie', source:'manual', coverUrl:manualCoverData,
+      playUrl, seasons, episodes,
+      raw:`${title}${year?' - '+year:''}${seriesText}${seenDate?' | visto em '+formatDate(seenDate):''}`
+    };
+    const list=loadCustomMovies();
+    const duplicateIndex=list.findIndex(m=>norm(m.title)===norm(movie.title) && String(m.year||'')===String(movie.year||''));
+    if(duplicateIndex>=0){
+      movie.id=list[duplicateIndex].id || movie.id;
+      list[duplicateIndex]={...list[duplicateIndex],...movie};
+    }else{
+      list.unshift(movie);
+    }
+    saveSavedCategories([...loadSavedCategories(), category]);
+    try{
+      saveCustomMovies(list);
+    }catch(err){
+      app.addStatus.textContent='A capa ficou pesada para salvar. Tente uma imagem menor.';
+      return;
+    }
+    refreshMovies();
+    statCards(); chips(); populateCategories();
+    app.search.value=''; showHome();
+    app.addSheet.close();
+    setTimeout(()=>document.getElementById(categorySectionId(category))?.scrollIntoView({behavior:'smooth',block:'start'}),120);
+  }finally{
+    addManualMovie.lock=false;
   }
-  refreshMovies();
-  statCards(); chips(); populateCategories();
-  app.search.value=''; showHome();
-  app.addSheet.close();
-  setTimeout(()=>document.getElementById(categorySectionId(category))?.scrollIntoView({behavior:'smooth',block:'start'}),120);
 }
 function updateEditSeriesFields(){
   if(!app.editSeriesFields) return;
