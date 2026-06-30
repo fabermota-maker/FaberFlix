@@ -14,7 +14,7 @@
   <link rel="shortcut icon" type="image/png" href="icons/icon-192.png?v=20260625c">
   <link rel="apple-touch-icon" href="icons/icon-180.png?v=20260625c">
   <title>FaberViux</title>
-  <!-- FaberViux GitHub Pages build: 20260625layoutpersist; index.html must start with <!doctype html>, not PNG bytes. -->
+  <!-- FaberViux GitHub Pages build: 20260630firebasechunkfix; index.html must start with <!doctype html>, not PNG bytes. -->
   <style>
 :root{
   color-scheme:dark;
@@ -1255,6 +1255,47 @@ function cloudSnapshotKeys(){
   });
   return keys;
 }
+const cloudChunkSize = 500000; // evita limite de 1MB por documento do Firestore
+function cloudChunksRef(){
+  const fb=cloudState.fb;
+  if(!fb || !cloudState.user) return null;
+  return fb.collection(fb.db,'users',cloudState.user.uid,'settings','library','chunks');
+}
+function cloudSplitPayload(payload){
+  const chunks=[];
+  for(let i=0;i<payload.length;i+=cloudChunkSize){
+    chunks.push(payload.slice(i,i+cloudChunkSize));
+  }
+  return chunks.length ? chunks : ['{}'];
+}
+async function cloudDeleteChunks(){
+  const fb=cloudState.fb || window.faberFirebase;
+  const chunksRef=cloudChunksRef();
+  if(!fb || !chunksRef || !fb.getDocs || !fb.deleteDoc) return;
+  const snap=await fb.getDocs(chunksRef);
+  const deletions=[];
+  snap.forEach(docSnap=>deletions.push(fb.deleteDoc(docSnap.ref)));
+  await Promise.all(deletions);
+}
+async function cloudReadChunkedKeys(){
+  const fb=cloudState.fb || window.faberFirebase;
+  const chunksRef=cloudChunksRef();
+  if(!fb || !chunksRef || !fb.getDocs) return null;
+  const snap=await fb.getDocs(chunksRef);
+  const parts=[];
+  snap.forEach(docSnap=>{
+    const data=docSnap.data() || {};
+    parts.push({index:Number(data.index)||0, value:String(data.value||'')});
+  });
+  parts.sort((a,b)=>a.index-b.index);
+  const payload=parts.map(p=>p.value).join('');
+  if(!payload) return null;
+  return JSON.parse(payload);
+}
+async function cloudResolveRemoteKeys(data){
+  if(data && data.chunked) return await cloudReadChunkedKeys();
+  return data?.keys || null;
+}
 function cloudApplyKeys(keys){
   if(!keys || typeof keys!=='object') return;
   cloudState.applying=true;
@@ -1297,6 +1338,9 @@ function cloudFriendlyError(err){
   }
   if(code.includes('permission-denied')){
     return 'O Firestore recusou o acesso. Confira se as regras foram publicadas e se você entrou com Google.';
+  }
+  if(code.includes('invalid-argument') || code.includes('resource-exhausted')){
+    return 'A biblioteca é grande demais para salvar em um único documento. Esta versão divide os dados em partes menores; recarregue o app atualizado e tente Nuvem novamente.';
   }
   return 'Não consegui concluir a ação no Firebase agora. Confira o login Google, as regras do Firestore e o domínio autorizado.';
 }
@@ -1364,23 +1408,36 @@ async function cloudUploadCurrent(reason='manual'){
   const now=Date.now();
   cloudState.lastUploadMs=now;
   try{
+    const keys=cloudSnapshotKeys();
+    const payload=JSON.stringify(keys);
+    const chunks=cloudSplitPayload(payload);
+    const chunksRef=cloudChunksRef();
+    if(!chunksRef) throw new Error('chunks-ref-indisponivel');
+
+    await cloudDeleteChunks();
+    await Promise.all(chunks.map((value,index)=>
+      fb.setDoc(fb.doc(chunksRef,String(index).padStart(4,'0')), {index,value})
+    ));
+
     await fb.setDoc(ref,{
       app:'FaberViux',
-      version:4,
-      syncModel:'localStorage-snapshot',
+      version:5,
+      syncModel:'localStorage-snapshot-chunked',
       updatedAt:fb.serverTimestamp(),
       updatedAtMs:now,
       reason,
       movieCount:unique(movies).length,
-      keys:cloudSnapshotKeys()
-    },{merge:true});
+      chunked:true,
+      chunkCount:chunks.length,
+      payloadBytes:payload.length
+    });
     cloudSetStatus('Sincronizado','synced');
     app.cloudUpload?.classList.add('cloud-saved');
     setTimeout(()=>app.cloudUpload?.classList.remove('cloud-saved'),1500);
   }catch(err){
     console.warn('Falha ao sincronizar Firebase',err);
     cloudSetStatus('Erro','error');
-    alert(cloudFriendlyError(err));
+    alert(cloudFriendlyError(err) + '\n\nCódigo técnico: ' + (err?.code || err?.message || 'sem código'));
   }
 }
 function setupCloudSync(){
@@ -1437,20 +1494,26 @@ function setupCloudSync(){
       const ref=cloudDocRef();
       if(!ref) return;
       cloudState.unsubscribe=fb.onSnapshot(ref,snap=>{
-        if(!snap.exists()){
-          cloudSetStatus('Online','online');
-          return;
-        }
-        const data=snap.data() || {};
-        const remoteMs=Number(data.updatedAtMs)||0;
-        if(remoteMs && Math.abs(remoteMs-cloudState.lastUploadMs)<1800){
+        (async()=>{
+          if(!snap.exists()){
+            cloudSetStatus('Online','online');
+            return;
+          }
+          const data=snap.data() || {};
+          const remoteMs=Number(data.updatedAtMs)||0;
+          if(remoteMs && Math.abs(remoteMs-cloudState.lastUploadMs)<1800){
+            cloudSetStatus('Sincronizado','synced');
+            return;
+          }
+          if(remoteMs && remoteMs<=cloudState.lastAppliedMs) return;
+          const keys=await cloudResolveRemoteKeys(data);
+          cloudState.lastAppliedMs=remoteMs || Date.now();
+          if(keys) cloudApplyKeys(keys);
           cloudSetStatus('Sincronizado','synced');
-          return;
-        }
-        if(remoteMs && remoteMs<=cloudState.lastAppliedMs) return;
-        cloudState.lastAppliedMs=remoteMs || Date.now();
-        cloudApplyKeys(data.keys || {});
-        cloudSetStatus('Sincronizado','synced');
+        })().catch(err=>{
+          console.warn('Leitura dos dados sincronizados falhou',err);
+          cloudSetStatus('Erro','error');
+        });
       },err=>{
         console.warn('Leitura Firebase falhou',err);
         cloudSetStatus('Erro','error');
