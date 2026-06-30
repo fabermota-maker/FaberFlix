@@ -570,13 +570,90 @@ button,input{font:inherit}button{cursor:pointer}a{color:inherit;text-decoration:
 @media(max-width:380px){
   .hero-inner{padding-top:62px!important;padding-bottom:122px!important;}
 }
+
+
+/* Firebase sync: botões pequenos e minimalistas no topo */
+.sync-top-slot{
+  min-width:0!important;
+  flex:1 1 auto!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+}
+.cloud-tools{
+  display:flex!important;
+  align-items:center!important;
+  gap:5px!important;
+  min-width:0!important;
+  padding:4px 5px!important;
+  border-radius:16px!important;
+  background:rgba(3,3,6,.30)!important;
+  border:1px solid rgba(255,255,255,.09)!important;
+  box-shadow:0 12px 32px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.06)!important;
+  backdrop-filter:blur(18px) saturate(1.28)!important;
+  -webkit-backdrop-filter:blur(18px) saturate(1.28)!important;
+}
+.cloud-btn,.cloud-status{
+  height:24px!important;
+  border-radius:999px!important;
+  border:1px solid rgba(255,255,255,.12)!important;
+  background:rgba(255,255,255,.075)!important;
+  color:rgba(255,255,255,.90)!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:5px!important;
+  padding:0 8px!important;
+  font-size:9.6px!important;
+  line-height:1!important;
+  font-weight:950!important;
+  letter-spacing:-.025em!important;
+  white-space:nowrap!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06)!important;
+}
+.cloud-btn:active{transform:scale(.96)!important}
+.cloud-login{max-width:64px!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.cloud-upload{max-width:58px!important}
+.cloud-status{color:rgba(255,255,255,.78)!important;min-width:58px!important}
+.cloud-status:before{
+  content:"";width:6px;height:6px;border-radius:50%;background:#8a8a95;box-shadow:0 0 0 rgba(0,0,0,0);flex:0 0 auto;
+}
+.cloud-tools[data-state="online"] .cloud-status:before,
+.cloud-tools[data-state="synced"] .cloud-status:before{background:var(--green);box-shadow:0 0 10px rgba(25,195,125,.65)}
+.cloud-tools[data-state="syncing"] .cloud-status:before{background:var(--plex);box-shadow:0 0 10px rgba(229,160,13,.65)}
+.cloud-tools[data-state="error"] .cloud-status:before{background:var(--red);box-shadow:0 0 10px rgba(229,9,20,.65)}
+.cloud-tools[data-state="signedout"] .cloud-status:before{background:#8a8a95}
+.cloud-tools[data-state="synced"] .cloud-status{border-color:rgba(25,195,125,.22)!important;background:rgba(25,195,125,.10)!important;color:#bdf5d8!important}
+.cloud-tools[data-state="syncing"] .cloud-status{border-color:rgba(229,160,13,.26)!important;background:rgba(229,160,13,.12)!important;color:#ffd36e!important}
+.cloud-tools[data-state="error"] .cloud-status{border-color:rgba(229,9,20,.28)!important;background:rgba(229,9,20,.12)!important;color:#ff9ba1!important}
+.cloud-upload.cloud-saved{border-color:rgba(25,195,125,.24)!important;color:#bdf5d8!important}
+@media(max-width:390px){
+  .cloud-tools{gap:4px!important;padding:4px!important}
+  .cloud-btn,.cloud-status{height:23px!important;padding:0 6px!important;font-size:9px!important}
+  .cloud-status{min-width:44px!important}
+  .cloud-upload{max-width:44px!important}
+}
+@media(max-width:360px){
+  .cloud-login,.cloud-upload{font-size:0!important;width:26px!important;max-width:26px!important;padding:0!important}
+  .cloud-login:after{content:"G";font-size:10px;font-weight:1000}
+  .cloud-upload:after{content:"↑";font-size:13px;font-weight:1000;margin-top:-1px}
+  .cloud-status{min-width:32px!important;width:32px!important;padding:0!important;font-size:0!important}
+  .cloud-status span{display:none!important}
+}
+
 </style>
 </head>
 <body>
   <div class="app-bg"></div>
   <div class="phone-shell" id="topo">
     <header class="topbar">
-      <div class="top-spacer" aria-hidden="true"></div>
+      <div class="top-spacer sync-top-slot">
+        <div class="cloud-tools" id="cloudTools" data-state="local" aria-label="Sincronização Firebase">
+          <button class="cloud-btn cloud-login" id="cloudLogin" type="button" title="Entrar com Google">Google</button>
+          <span class="cloud-status" id="cloudStatus" data-short="Local"><span>Local</span></span>
+          <button class="cloud-btn cloud-upload" id="cloudUpload" type="button" title="Enviar biblioteca atual para nuvem">Nuvem</button>
+        </div>
+      </div>
       <div class="top-icons"><button class="ico cast" aria-label="Transmitir"></button><button class="ico search" id="searchBtn" aria-label="Buscar"></button><button class="year-top-btn" id="yearsBtn" type="button">Anos</button><button class="ico menu" id="settingsBtn" aria-label="Configurar capas"></button></div>
     </header>
     <main class="main">
@@ -1064,6 +1141,7 @@ function importBackupFile(file){
       }
       refreshMovies(); statCards(); chips(); populateCategories();
       const q=app.search.value.trim(); if(q) showSearch(q); else showHome();
+      cloudScheduleSave('importar-backup');
       alert(importedCount ? `Backup importado com sucesso: ${importedCount} registros lidos.` : 'Backup importado com sucesso.');
     }catch(err){alert('Não consegui importar este backup.');}
   };
@@ -1153,8 +1231,145 @@ const app = {
   categoryStatus: document.querySelector('#categoryStatus'),
   yearSheet: document.querySelector('#yearSheet'),
   yearGrid: document.querySelector('#yearGrid'),
-  yearsBtn: document.querySelector('#yearsBtn')
+  yearsBtn: document.querySelector('#yearsBtn'),
+  cloudTools: document.querySelector('#cloudTools'),
+  cloudLogin: document.querySelector('#cloudLogin'),
+  cloudStatus: document.querySelector('#cloudStatus'),
+  cloudUpload: document.querySelector('#cloudUpload')
 };
+
+const cloudStorageKeys = [customKey, editKey, deletedKey, categoryKey, categoryAliasKey, signatureEditKey, deletedSignatureKey, migrationFlagKey, legacyCoverMigrationFlagKey, heroKey];
+const cloudState = {fb:null,user:null,unsubscribe:null,ready:false,applying:false,pending:null,lastUploadMs:0,lastAppliedMs:0};
+function cloudSetStatus(text='Local', state='local'){
+  if(app.cloudStatus){
+    app.cloudStatus.innerHTML = `<span>${esc(text)}</span>`;
+    app.cloudStatus.dataset.short = text;
+  }
+  if(app.cloudTools) app.cloudTools.dataset.state = state;
+}
+function cloudSnapshotKeys(){
+  const keys={};
+  cloudStorageKeys.forEach(key=>{
+    const value=localStorage.getItem(key);
+    if(value!==null) keys[key]=value;
+  });
+  return keys;
+}
+function cloudApplyKeys(keys){
+  if(!keys || typeof keys!=='object') return;
+  cloudState.applying=true;
+  try{
+    cloudStorageKeys.forEach(key=>{
+      if(Object.prototype.hasOwnProperty.call(keys,key)){
+        const value=keys[key];
+        if(typeof value==='string') localStorage.setItem(key,value);
+        else localStorage.removeItem(key);
+      }
+    });
+  }finally{
+    cloudState.applying=false;
+  }
+  repairImportedStorage();
+  refreshMovies();
+  statCards(); chips(); populateCategories(); renderYearOptions();
+  const q=app.search?.value.trim() || '';
+  if(q) showSearch(q); else showHome();
+  setRandomHeroCover();
+}
+function cloudDocRef(){
+  const fb=cloudState.fb;
+  if(!fb || !cloudState.user) return null;
+  return fb.doc(fb.db,'users',cloudState.user.uid,'settings','library');
+}
+function cloudScheduleSave(reason='auto'){
+  if(cloudState.applying || !cloudState.ready || !cloudState.user) return;
+  clearTimeout(cloudState.pending);
+  cloudSetStatus('Salvando','syncing');
+  cloudState.pending=setTimeout(()=>cloudUploadCurrent(reason),900);
+}
+async function cloudUploadCurrent(reason='manual'){
+  const fb=cloudState.fb;
+  const ref=cloudDocRef();
+  if(!fb || !ref || !cloudState.user){ cloudSetStatus('Local','signedout'); return; }
+  cloudSetStatus('Enviando','syncing');
+  const now=Date.now();
+  cloudState.lastUploadMs=now;
+  try{
+    await fb.setDoc(ref,{
+      app:'FaberViux',
+      version:3,
+      syncModel:'localStorage-snapshot',
+      updatedAt:fb.serverTimestamp(),
+      updatedAtMs:now,
+      reason,
+      movieCount:unique(movies).length,
+      keys:cloudSnapshotKeys()
+    },{merge:true});
+    cloudSetStatus('Sincronizado','synced');
+    app.cloudUpload?.classList.add('cloud-saved');
+    setTimeout(()=>app.cloudUpload?.classList.remove('cloud-saved'),1500);
+  }catch(err){
+    console.warn('Falha ao sincronizar Firebase',err);
+    cloudSetStatus('Erro','error');
+    alert('Não consegui enviar para a nuvem agora. Confira se o Google está logado e se as regras do Firestore foram publicadas.');
+  }
+}
+function setupCloudSync(){
+  cloudSetStatus('Local','local');
+  app.cloudLogin?.addEventListener('click',async()=>{
+    const fb=cloudState.fb || window.faberFirebase;
+    if(!fb){ cloudSetStatus('Offline','error'); return; }
+    try{
+      if(cloudState.user){ await fb.signOut(fb.auth); return; }
+      cloudSetStatus('Login','syncing');
+      await fb.signInWithPopup(fb.auth, fb.googleProvider);
+    }catch(err){
+      console.warn('Login Firebase cancelado/negado',err);
+      cloudSetStatus('Local','signedout');
+    }
+  });
+  app.cloudUpload?.addEventListener('click',()=>cloudUploadCurrent('envio-manual'));
+  const boot=(fb)=>{
+    if(!fb || cloudState.ready) return;
+    cloudState.fb=fb;
+    cloudState.ready=true;
+    fb.onAuthStateChanged(fb.auth,user=>{
+      cloudState.user=user || null;
+      if(cloudState.unsubscribe){ cloudState.unsubscribe(); cloudState.unsubscribe=null; }
+      if(!user){
+        if(app.cloudLogin) app.cloudLogin.textContent='Google';
+        cloudSetStatus('Local','signedout');
+        return;
+      }
+      if(app.cloudLogin) app.cloudLogin.textContent='Sair';
+      cloudSetStatus('Online','online');
+      const ref=cloudDocRef();
+      if(!ref) return;
+      cloudState.unsubscribe=fb.onSnapshot(ref,snap=>{
+        if(!snap.exists()){
+          cloudSetStatus('Online','online');
+          return;
+        }
+        const data=snap.data() || {};
+        const remoteMs=Number(data.updatedAtMs)||0;
+        if(remoteMs && Math.abs(remoteMs-cloudState.lastUploadMs)<1800){
+          cloudSetStatus('Sincronizado','synced');
+          return;
+        }
+        if(remoteMs && remoteMs<=cloudState.lastAppliedMs) return;
+        cloudState.lastAppliedMs=remoteMs || Date.now();
+        cloudApplyKeys(data.keys || {});
+        cloudSetStatus('Sincronizado','synced');
+      },err=>{
+        console.warn('Leitura Firebase falhou',err);
+        cloudSetStatus('Erro','error');
+      });
+    });
+  };
+  if(window.faberFirebase) boot(window.faberFirebase);
+  window.addEventListener('faberFirebaseReady',e=>boot(e.detail || window.faberFirebase));
+}
+
 const accents = ['#252631','#301b25','#173052','#2b2440','#2c281b','#162a23','#281b1b'];
 function norm(v){return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim()}
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -1678,6 +1893,7 @@ async function addManualMovie(e){
     statCards(); chips(); populateCategories();
     app.search.value=''; showHome();
     app.addSheet.close();
+    cloudScheduleSave('adicionar-filme');
     setTimeout(()=>document.getElementById(categorySectionId(category))?.scrollIntoView({behavior:'smooth',block:'start'}),120);
   }finally{
     addManualMovie.lock=false;
@@ -1765,6 +1981,7 @@ async function saveEditedMovie(e){
   const q=app.search.value.trim();
   if(q) showSearch(q); else showHome();
   app.editSheet.close();
+  cloudScheduleSave('editar-filme');
 }
 function renderCategoryManager(){
   const cats=categoryOrder().sort((a,b)=>a.localeCompare(b,'pt-BR'));
@@ -1787,6 +2004,7 @@ function addCategoryName(){
   app.newCategoryName.value='';
   refreshMovies(); populateCategories(); chips(); renderCategoryManager();
   if(app.categoryStatus) app.categoryStatus.textContent='Categoria adicionada.';
+  cloudScheduleSave('adicionar-categoria');
 }
 function renameCategory(){
   const oldName=app.categorySelect?.value || '';
@@ -1815,6 +2033,7 @@ function renameCategory(){
   refreshMovies(); statCards(); chips(); populateCategories(); renderCategoryManager();
   const q=app.search.value.trim(); if(q) showSearch(q); else showHome();
   if(app.categoryStatus) app.categoryStatus.textContent='Categoria renomeada em todos os filmes.';
+  cloudScheduleSave('renomear-categoria');
 }
 function setupCategoryManager(){
   app.openCategoryManager?.addEventListener('click',()=>{renderCategoryManager(); if(app.categorySelect && app.renameCategoryName) app.renameCategoryName.value=app.categorySelect.value||''; if(app.categoryStatus) app.categoryStatus.textContent=''; app.categorySheet.showModal();});
@@ -1844,6 +2063,7 @@ function deleteCurrentMovie(){
   refreshMovies(); statCards(); chips(); populateCategories();
   const q=app.search.value.trim(); if(q) showSearch(q); else showHome();
   app.editSheet.close();
+  cloudScheduleSave('excluir-filme');
 }
 function setupEditMovie(){
   app.editDetailMovie?.addEventListener('click',()=>openEditForm(app.editDetailMovie.dataset.id || currentDetailId));
@@ -1907,7 +2127,7 @@ function setupAddMovie(){
 }
 function setup(){
   saveSavedCategories(loadSavedCategories());
-  statCards(); chips(); populateCategories(); showHome(); setupAddMovie(); setupEditMovie(); setupCategoryManager(); renderYearOptions();
+  statCards(); chips(); populateCategories(); showHome(); setupAddMovie(); setupEditMovie(); setupCategoryManager(); renderYearOptions(); setupCloudSync();
   app.exportBackup?.addEventListener('click',exportBackup);
   app.importBackup?.addEventListener('change',e=>{importBackupFile(e.target.files?.[0]); e.target.value='';});
   migrateLegacyCoverDB();
@@ -1985,6 +2205,7 @@ setup();
     onSnapshot,
     serverTimestamp
   };
+  window.dispatchEvent(new CustomEvent('faberFirebaseReady',{detail:window.faberFirebase}));
 </script>
 </body>
 </html>
