@@ -1287,17 +1287,56 @@ function cloudScheduleSave(reason='auto'){
   cloudSetStatus('Salvando','syncing');
   cloudState.pending=setTimeout(()=>cloudUploadCurrent(reason),900);
 }
+function cloudFriendlyError(err){
+  const code=String(err?.code || '');
+  if(code.includes('unauthorized-domain')){
+    return 'O domínio do GitHub Pages ainda não está autorizado no Firebase. No Firebase, vá em Authentication > Configurações > Domínios autorizados e adicione o domínio do seu GitHub Pages.';
+  }
+  if(code.includes('popup-blocked') || code.includes('popup-closed-by-user')){
+    return 'O login por janela foi bloqueado ou fechado. Atualizei o app para usar redirecionamento, que funciona melhor no celular e no GitHub Pages.';
+  }
+  if(code.includes('permission-denied')){
+    return 'O Firestore recusou o acesso. Confira se as regras foram publicadas e se você entrou com Google.';
+  }
+  return 'Não consegui concluir a ação no Firebase agora. Confira o login Google, as regras do Firestore e o domínio autorizado.';
+}
+async function cloudStartLogin(afterUpload=false){
+  const fb=cloudState.fb || window.faberFirebase;
+  if(!fb){ cloudSetStatus('Offline','error'); alert('Firebase ainda não carregou. Recarregue o app e tente novamente.'); return; }
+  try{
+    if(afterUpload) localStorage.setItem('fabervi_cloud_upload_after_login','1');
+    cloudSetStatus('Entrando','syncing');
+    if(fb.googleProvider?.setCustomParameters){
+      fb.googleProvider.setCustomParameters({prompt:'select_account'});
+    }
+    if(typeof fb.signInWithRedirect === 'function'){
+      await fb.signInWithRedirect(fb.auth, fb.googleProvider);
+    }else{
+      await fb.signInWithPopup(fb.auth, fb.googleProvider);
+    }
+  }catch(err){
+    console.warn('Login Firebase falhou',err);
+    cloudSetStatus('Erro','error');
+    alert(cloudFriendlyError(err));
+  }
+}
 async function cloudUploadCurrent(reason='manual'){
-  const fb=cloudState.fb;
+  const fb=cloudState.fb || window.faberFirebase;
+  if(!fb){ cloudSetStatus('Offline','error'); alert('Firebase ainda não carregou. Recarregue o app e tente novamente.'); return; }
+  if(!cloudState.user){
+    cloudSetStatus('Entrar','signedout');
+    await cloudStartLogin(true);
+    return;
+  }
   const ref=cloudDocRef();
-  if(!fb || !ref || !cloudState.user){ cloudSetStatus('Local','signedout'); return; }
+  if(!ref){ cloudSetStatus('Erro','error'); alert('Não consegui preparar a conexão com a nuvem. Recarregue o app e tente novamente.'); return; }
   cloudSetStatus('Enviando','syncing');
   const now=Date.now();
   cloudState.lastUploadMs=now;
   try{
     await fb.setDoc(ref,{
       app:'FaberViux',
-      version:3,
+      version:4,
       syncModel:'localStorage-snapshot',
       updatedAt:fb.serverTimestamp(),
       updatedAtMs:now,
@@ -1311,21 +1350,21 @@ async function cloudUploadCurrent(reason='manual'){
   }catch(err){
     console.warn('Falha ao sincronizar Firebase',err);
     cloudSetStatus('Erro','error');
-    alert('Não consegui enviar para a nuvem agora. Confira se o Google está logado e se as regras do Firestore foram publicadas.');
+    alert(cloudFriendlyError(err));
   }
 }
 function setupCloudSync(){
   cloudSetStatus('Local','local');
   app.cloudLogin?.addEventListener('click',async()=>{
     const fb=cloudState.fb || window.faberFirebase;
-    if(!fb){ cloudSetStatus('Offline','error'); return; }
+    if(!fb){ cloudSetStatus('Offline','error'); alert('Firebase ainda não carregou. Recarregue o app e tente novamente.'); return; }
     try{
       if(cloudState.user){ await fb.signOut(fb.auth); return; }
-      cloudSetStatus('Login','syncing');
-      await fb.signInWithPopup(fb.auth, fb.googleProvider);
+      await cloudStartLogin(false);
     }catch(err){
       console.warn('Login Firebase cancelado/negado',err);
-      cloudSetStatus('Local','signedout');
+      cloudSetStatus('Erro','error');
+      alert(cloudFriendlyError(err));
     }
   });
   app.cloudUpload?.addEventListener('click',()=>cloudUploadCurrent('envio-manual'));
@@ -1333,6 +1372,13 @@ function setupCloudSync(){
     if(!fb || cloudState.ready) return;
     cloudState.fb=fb;
     cloudState.ready=true;
+    if(typeof fb.getRedirectResult === 'function'){
+      fb.getRedirectResult(fb.auth).catch(err=>{
+        console.warn('Retorno do login Firebase falhou',err);
+        cloudSetStatus('Erro','error');
+        alert(cloudFriendlyError(err));
+      });
+    }
     fb.onAuthStateChanged(fb.auth,user=>{
       cloudState.user=user || null;
       if(cloudState.unsubscribe){ cloudState.unsubscribe(); cloudState.unsubscribe=null; }
@@ -1343,6 +1389,10 @@ function setupCloudSync(){
       }
       if(app.cloudLogin) app.cloudLogin.textContent='Sair';
       cloudSetStatus('Online','online');
+      if(localStorage.getItem('fabervi_cloud_upload_after_login')==='1'){
+        localStorage.removeItem('fabervi_cloud_upload_after_login');
+        setTimeout(()=>cloudUploadCurrent('envio-pos-login'),800);
+      }
       const ref=cloudDocRef();
       if(!ref) return;
       cloudState.unsubscribe=fb.onSnapshot(ref,snap=>{
@@ -2160,6 +2210,8 @@ setup();
     getAuth,
     GoogleAuthProvider,
     signInWithPopup,
+    signInWithRedirect,
+    getRedirectResult,
     onAuthStateChanged,
     signOut
   } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
@@ -2195,6 +2247,8 @@ setup();
     db,
     googleProvider,
     signInWithPopup,
+    signInWithRedirect,
+    getRedirectResult,
     onAuthStateChanged,
     signOut,
     collection,
