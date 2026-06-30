@@ -1931,5 +1931,60 @@ if('serviceWorker' in navigator && location.protocol.startsWith('http')){navigat
 setup();
 
 </script>
+
+
+<!-- Firebase: conexão FaberFlix/FaberViux -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+  import {
+    getAuth,
+    GoogleAuthProvider,
+    signInWithPopup,
+    onAuthStateChanged,
+    signOut
+  } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+  import {
+    getFirestore,
+    collection,
+    doc,
+    setDoc,
+    deleteDoc,
+    getDocs,
+    onSnapshot,
+    serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDBVN0znuwgEDBFJJubeF70mvnefbFHmnk",
+    authDomain: "faberflix-8959a.firebaseapp.com",
+    projectId: "faberflix-8959a",
+    storageBucket: "faberflix-8959a.firebasestorage.app",
+    messagingSenderId: "204994333067",
+    appId: "1:204994333067:web:d808d42eabcced74a7c78e",
+    measurementId: "G-D1J3RP93VG"
+  };
+
+  const firebaseApp = initializeApp(firebaseConfig);
+  const auth = getAuth(firebaseApp);
+  const db = getFirestore(firebaseApp);
+  const googleProvider = new GoogleAuthProvider();
+
+  window.faberFirebase = {
+    app: firebaseApp,
+    auth,
+    db,
+    googleProvider,
+    signInWithPopup,
+    onAuthStateChanged,
+    signOut,
+    collection,
+    doc,
+    setDoc,
+    deleteDoc,
+    getDocs,
+    onSnapshot,
+    serverTimestamp
+  };
+</script>
 </body>
 </html>
