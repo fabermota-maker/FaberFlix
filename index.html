@@ -1292,8 +1292,8 @@ function cloudFriendlyError(err){
   if(code.includes('unauthorized-domain')){
     return 'O domínio do GitHub Pages ainda não está autorizado no Firebase. No Firebase, vá em Authentication > Configurações > Domínios autorizados e adicione o domínio do seu GitHub Pages.';
   }
-  if(code.includes('popup-blocked') || code.includes('popup-closed-by-user')){
-    return 'O login por janela foi bloqueado ou fechado. Atualizei o app para usar redirecionamento, que funciona melhor no celular e no GitHub Pages.';
+  if(code.includes('popup-blocked') || code.includes('popup-closed-by-user') || code.includes('cancelled-popup-request')){
+    return 'O navegador bloqueou ou fechou a janela do Google. Tente no Chrome, desative bloqueadores para este site ou abra pelo navegador normal em vez do app instalado.';
   }
   if(code.includes('permission-denied')){
     return 'O Firestore recusou o acesso. Confira se as regras foram publicadas e se você entrou com Google.';
@@ -1309,15 +1309,45 @@ async function cloudStartLogin(afterUpload=false){
     if(fb.googleProvider?.setCustomParameters){
       fb.googleProvider.setCustomParameters({prompt:'select_account'});
     }
+    if(typeof fb.setPersistence === 'function' && fb.browserLocalPersistence){
+      await fb.setPersistence(fb.auth, fb.browserLocalPersistence).catch(()=>{});
+    }
+    /*
+      GitHub Pages + navegadores mobile/Brave podem perder o retorno do signInWithRedirect
+      por bloqueio de armazenamento de terceiros. Por isso o login principal agora é POPUP.
+      O redirect fica apenas como fallback quando o navegador bloquear popup.
+    */
+    if(typeof fb.signInWithPopup === 'function'){
+      const result = await fb.signInWithPopup(fb.auth, fb.googleProvider);
+      if(result?.user){
+        cloudState.user=result.user;
+        cloudSetStatus('Online','online');
+        if(app.cloudLogin) app.cloudLogin.textContent='Sair';
+        if(afterUpload) setTimeout(()=>cloudUploadCurrent('envio-pos-login-popup'),500);
+      }
+      return;
+    }
     if(typeof fb.signInWithRedirect === 'function'){
       await fb.signInWithRedirect(fb.auth, fb.googleProvider);
-    }else{
-      await fb.signInWithPopup(fb.auth, fb.googleProvider);
     }
   }catch(err){
     console.warn('Login Firebase falhou',err);
+    const code=String(err?.code||'');
+    const canRedirect = code.includes('popup-blocked') || code.includes('popup-closed-by-user') || code.includes('cancelled-popup-request') || code.includes('operation-not-supported');
+    if(canRedirect && fb.signInWithRedirect){
+      try{
+        cloudSetStatus('Redirecionando','syncing');
+        await fb.signInWithRedirect(fb.auth, fb.googleProvider);
+        return;
+      }catch(err2){
+        console.warn('Fallback redirect Firebase falhou',err2);
+        cloudSetStatus('Erro','error');
+        alert(cloudFriendlyError(err2));
+        return;
+      }
+    }
     cloudSetStatus('Erro','error');
-    alert(cloudFriendlyError(err));
+    alert(cloudFriendlyError(err) + '\n\nCódigo técnico: ' + (err?.code || 'sem código'));
   }
 }
 async function cloudUploadCurrent(reason='manual'){
@@ -1373,11 +1403,22 @@ function setupCloudSync(){
     cloudState.fb=fb;
     cloudState.ready=true;
     if(typeof fb.getRedirectResult === 'function'){
-      fb.getRedirectResult(fb.auth).catch(err=>{
+      fb.getRedirectResult(fb.auth).then(result=>{
+        if(result?.user){
+          cloudState.user=result.user;
+          cloudSetStatus('Online','online');
+          if(app.cloudLogin) app.cloudLogin.textContent='Sair';
+        }
+      }).catch(err=>{
         console.warn('Retorno do login Firebase falhou',err);
         cloudSetStatus('Erro','error');
-        alert(cloudFriendlyError(err));
+        alert(cloudFriendlyError(err) + '\n\nCódigo técnico: ' + (err?.code || 'sem código'));
       });
+    }
+    if(fb.auth?.currentUser){
+      cloudState.user=fb.auth.currentUser;
+      cloudSetStatus('Online','online');
+      if(app.cloudLogin) app.cloudLogin.textContent='Sair';
     }
     fb.onAuthStateChanged(fb.auth,user=>{
       cloudState.user=user || null;
@@ -2213,7 +2254,9 @@ setup();
     signInWithRedirect,
     getRedirectResult,
     onAuthStateChanged,
-    signOut
+    signOut,
+    setPersistence,
+    browserLocalPersistence
   } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
   import {
     getFirestore,
@@ -2240,6 +2283,11 @@ setup();
   const auth = getAuth(firebaseApp);
   const db = getFirestore(firebaseApp);
   const googleProvider = new GoogleAuthProvider();
+  try {
+    await setPersistence(auth, browserLocalPersistence);
+  } catch (err) {
+    console.warn('Firebase persistence não pôde ser fixada', err);
+  }
 
   window.faberFirebase = {
     app: firebaseApp,
@@ -2251,6 +2299,8 @@ setup();
     getRedirectResult,
     onAuthStateChanged,
     signOut,
+    setPersistence,
+    browserLocalPersistence,
     collection,
     doc,
     setDoc,
